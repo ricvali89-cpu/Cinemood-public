@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineMood — Importa dati</title>
+<script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#090b0f;--surface:#151b23;--surface-2:#1c232d;--line:#262f3b;--gold:#e3a857;--text:#f2efe9;--muted:#8a93a3;--green:#4caf7d;}
+*{box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;margin:0;padding:24px;line-height:1.6;}
+.wrap{max-width:480px;margin:40px auto;}
+h1{font-family:'Bebas Neue';font-size:32px;color:var(--gold);margin:0 0 6px;}
+p{color:var(--muted);font-size:14px;}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:20px;}
+.choices{display:flex;gap:10px;margin:16px 0;}
+button{
+  background:var(--surface-2);border:1px solid var(--line);color:var(--text);
+  padding:12px 18px;border-radius:999px;font-weight:700;font-size:14px;cursor:pointer;flex:1;
+}
+button.active{border-color:var(--gold);color:var(--gold);}
+button.primary{background:var(--gold);color:#161005;border:none;width:100%;margin-top:14px;}
+button:disabled{opacity:.5;cursor:default;}
+.status{font-size:13.5px;color:var(--muted);margin-top:14px;white-space:pre-wrap;}
+.status.ok{color:var(--green);}
+.status.err{color:#e0668f;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Importa i tuoi dati</h1>
+  <p>Strumento una tantum: copia preferiti, visti e voti dal vecchio archivio privato al tuo profilo pubblico attuale su questo dispositivo.</p>
+
+  <div class="card">
+    <p style="margin:0 0 4px;color:var(--text);font-weight:700;">1. Da chi importare?</p>
+    <div class="choices">
+      <button id="btnGiuseppe" type="button">Giuseppe</button>
+      <button id="btnRicky" type="button">Ricky</button>
+    </div>
+    <div id="preview" class="status"></div>
+    <button id="importBtn" class="primary" type="button" disabled>2. Importa nel mio profilo attuale</button>
+    <div id="status" class="status"></div>
+  </div>
+</div>
+
+<script>
+/* ---- Firebase (stesso progetto del sito pubblico) ---- */
+const firebaseConfig = {
+  apiKey: "AIzaSyC2N3Kt64HVWR5Quc6AF4BNEujt1qeKbL8",
+  authDomain: "cinemood-c3215.firebaseapp.com",
+  projectId: "cinemood-c3215",
+  storageBucket: "cinemood-c3215.firebasestorage.app",
+  messagingSenderId: "732937260760",
+  appId: "1:732937260760:web:6621ff4cd1d5da9d80d1ad"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+const db = firebase.firestore();
+
+/* ---- Vecchio archivio privato (JSONBin, sola lettura) ---- */
+const JSONBIN_ID = "6a60a891f5f4af5e29b08077";
+const JSONBIN_KEY = "$2a$10$KNOkE9OSUHo9q5DGj88dbu0EroMcSADwrnA/t5DZLOFIL6gOoPIIi";
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`;
+
+let chosenName = null;
+let sourceData = null;
+let currentUid = null;
+
+function setStatus(el, text, cls){
+  el.textContent = text;
+  el.className = "status" + (cls ? " "+cls : "");
+}
+
+async function pickSource(name, btn){
+  chosenName = name;
+  document.getElementById("btnGiuseppe").classList.toggle("active", name==="Giuseppe");
+  document.getElementById("btnRicky").classList.toggle("active", name==="Ricky");
+  const preview = document.getElementById("preview");
+  setStatus(preview, "Carico i dati...");
+  try{
+    const res = await fetch(JSONBIN_URL, { headers:{ "X-Master-Key": JSONBIN_KEY } });
+    const json = await res.json();
+    const record = json.record || {};
+    sourceData = record[name] || null;
+    if(!sourceData){
+      setStatus(preview, "Nessun dato trovato per "+name+".", "err");
+      document.getElementById("importBtn").disabled = true;
+      return;
+    }
+    const favCount = (sourceData.favorites?.movie?.length||0) + (sourceData.favorites?.tv?.length||0);
+    const watchedCount = Object.keys(sourceData.watched?.movie||{}).length + Object.keys(sourceData.watched?.tv||{}).length;
+    setStatus(preview, `Trovati: ${favCount} preferiti, ${watchedCount} titoli visti.`);
+    document.getElementById("importBtn").disabled = false;
+  }catch(e){
+    console.error(e);
+    setStatus(preview, "Errore nel caricamento dei dati vecchi.", "err");
+  }
+}
+document.getElementById("btnGiuseppe").addEventListener("click", ()=> pickSource("Giuseppe"));
+document.getElementById("btnRicky").addEventListener("click", ()=> pickSource("Ricky"));
+
+function mergeArraysById(a, b){
+  const out = [...(a||[])];
+  const ids = new Set(out.map(x=>x.id));
+  (b||[]).forEach(x=>{ if(!ids.has(x.id)){ out.push(x); ids.add(x.id); } });
+  return out;
+}
+function mergeBoolMaps(a, b){ return { ...(b||{}), ...(a||{}) }; } // a (esistente) vince, b riempie i vuoti
+function mergeArrayMaps(a, b){
+  const out = { ...(a||{}) };
+  Object.keys(b||{}).forEach(k=>{
+    const existing = new Set(out[k]||[]);
+    (b[k]||[]).forEach(v=>existing.add(v));
+    out[k] = [...existing];
+  });
+  return out;
+}
+
+document.getElementById("importBtn").addEventListener("click", async ()=>{
+  const statusEl = document.getElementById("status");
+  if(!sourceData || !currentUid){ setStatus(statusEl, "Attendi il collegamento al tuo profilo attuale...", "err"); return; }
+  setStatus(statusEl, "Importazione in corso...");
+  try{
+    const docRef = db.collection("profiles").doc(currentUid);
+    const snap = await docRef.get();
+    const current = snap.exists ? snap.data() : { displayName:"", favorites:{movie:[],tv:[]}, watched:{movie:{},tv:{}}, watchedSeasons:{}, watchedEpisodes:{}, ratings:{movie:{},tv:{}} };
+
+    const merged = {
+      ...current,
+      favorites: {
+        movie: mergeArraysById(current.favorites?.movie, sourceData.favorites?.movie),
+        tv: mergeArraysById(current.favorites?.tv, sourceData.favorites?.tv),
+      },
+      watched: {
+        movie: mergeBoolMaps(current.watched?.movie, sourceData.watched?.movie),
+        tv: mergeBoolMaps(current.watched?.tv, sourceData.watched?.tv),
+      },
+      watchedSeasons: mergeArrayMaps(current.watchedSeasons, sourceData.watchedSeasons),
+      watchedEpisodes: mergeArrayMaps(current.watchedEpisodes, sourceData.watchedEpisodes),
+      ratings: {
+        movie: { ...(sourceData.ratings?.movie||{}), ...(current.ratings?.movie||{}) },
+        tv: { ...(sourceData.ratings?.tv||{}), ...(current.ratings?.tv||{}) },
+      }
+    };
+
+    await docRef.set(merged);
+    setStatus(statusEl, "✅ Importazione completata! Torna nell'app e ricarica la pagina per vedere tutto.", "ok");
+  }catch(e){
+    console.error(e);
+    setStatus(statusEl, "Errore durante l'importazione: "+e.message, "err");
+  }
+});
+
+fbAuth.onAuthStateChanged((user)=>{
+  if(user){
+    currentUid = user.uid;
+  } else {
+    fbAuth.signInAnonymously();
+  }
+});
+</script>
+</body>
+</html>
