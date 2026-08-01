@@ -1,0 +1,3330 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>CineMood — Il tuo cinema, il tuo umore</title>
+<meta name="theme-color" content="#090b0f">
+<meta name="description" content="Cerca film e serie TV, salva i preferiti e trova cosa guardare in base al mood.">
+<!-- iOS: aggiunta a Home come app a schermo intero -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CineMood">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Android/Chrome: PWA installabile -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#090b0f;
+  --bg-soft:#0f1319;
+  --surface:#151b23;
+  --surface-2:#1c232d;
+  --line:#262f3b;
+  --gold:#e3a857;
+  --gold-dim:#8a6a3a;
+  --red:#c1443a;
+  --text:#f2efe9;
+  --muted:#8a93a3;
+  --green:#4caf7d;
+  --radius:10px;
+  --shadow: 0 20px 40px -20px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box;}
+
+/* ---------- SPLASH VIDEO ---------- */
+.splash{
+  position:fixed;inset:0;background:#000;z-index:300;
+  display:flex;align-items:center;justify-content:center;
+  transition:opacity .6s ease;
+}
+.splash.fade-out{opacity:0;pointer-events:none;}
+.splash video{width:100%;height:100%;object-fit:contain;background:#000;}
+.splash-skip{
+  position:absolute;bottom:calc(24px + env(safe-area-inset-bottom));right:20px;z-index:2;
+  background:rgba(255,255,255,.12);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.25);
+  color:#fff;padding:9px 18px;border-radius:999px;font-size:13px;font-weight:700;font-family:inherit;
+}
+
+/* ---------- BENVENUTO / NOME ---------- */
+/* ---------- ONBOARDING (solo nuovi utenti) ---------- */
+.onboarding-overlay[hidden]{display:none;}
+.onboarding-overlay{
+  position:fixed;inset:0;z-index:260;
+  background:radial-gradient(1200px 600px at 15% -10%, #14202c 0%, var(--bg) 55%) fixed, var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+}
+.onboarding-skip{
+  position:absolute;top:calc(20px + env(safe-area-inset-top));right:20px;
+  background:none;border:none;color:var(--muted);font-weight:700;font-size:13.5px;padding:8px;
+}
+.onboarding-slide{max-width:340px;text-align:center;}
+.onboarding-emoji{font-size:64px;margin-bottom:22px;}
+.onboarding-slide h1{font-family:'Bebas Neue';font-size:30px;color:var(--gold);margin:0 0 12px;}
+.onboarding-slide p{color:var(--text);font-size:15px;line-height:1.6;opacity:.9;}
+.onboarding-dots{display:flex;gap:8px;margin:34px 0 26px;}
+.onboarding-dots span{width:7px;height:7px;border-radius:50%;background:var(--line);transition:.2s;}
+.onboarding-dots span.active{background:var(--gold);width:20px;border-radius:4px;}
+.onboarding-next{
+  background:var(--gold);color:#161005;border:none;font-weight:800;
+  padding:13px 40px;border-radius:999px;font-size:15px;
+}
+.welcome-overlay[hidden]{display:none;}
+.welcome-overlay{
+  position:fixed;inset:0;z-index:250;
+  background:radial-gradient(1200px 600px at 15% -10%, #14202c 0%, var(--bg) 55%) fixed, var(--bg);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.welcome-card{max-width:360px;width:100%;text-align:center;}
+.welcome-card .brandmark{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  font-family:'Bebas Neue';font-size:24px;color:var(--gold);margin-bottom:28px;
+}
+.welcome-card .brandmark .dot{width:8px;height:8px;border-radius:50%;background:#c1443a;box-shadow:0 0 12px #c1443a;}
+.welcome-card h1{font-family:'Bebas Neue';font-size:32px;margin:0 0 8px;color:var(--text);}
+.welcome-card p{color:var(--muted);font-size:13.5px;margin:0 0 22px;}
+.welcome-card input{
+  width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--text);
+  padding:13px 16px;border-radius:999px;font-size:16px;text-align:center;outline:none;margin-bottom:14px;
+}
+.welcome-card input:focus{border-color:var(--gold);}
+.welcome-card button{
+  width:100%;background:var(--gold);color:#161005;border:none;font-weight:800;
+  padding:13px 16px;border-radius:999px;font-size:15px;
+}
+.google-btn{
+  background:#fff !important;color:#1f1f1f !important;margin-bottom:0;
+}
+.google-btn:disabled{opacity:.6;}
+.welcome-divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em;}
+.welcome-divider::before,.welcome-divider::after{content:"";flex:1;height:1px;background:var(--line);}
+.welcome-card .link-btn{
+  background:none;color:var(--muted);font-weight:600;font-size:12.5px;
+  padding:14px 4px 0;text-decoration:underline;width:auto;
+}
+.footer-link-btn{
+  background:none;border:none;color:var(--muted);font-family:inherit;font-size:inherit;
+  padding:0;text-decoration:underline;cursor:pointer;
+}
+
+/* ---------- NAVIGAZIONE DA TELECOMANDO / TASTIERA ---------- */
+:focus{outline:none;}
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+[tabindex]:focus-visible{
+  outline:3px solid var(--gold);
+  outline-offset:3px;
+  border-radius:6px;
+  z-index:5;
+  position:relative;
+}
+.card:focus-visible, .fav-row:focus-visible, .hero-slide:focus-visible{
+  outline:3px solid var(--gold);
+  outline-offset:2px;
+  transform:translateY(-4px);
+}
+html,body{margin:0;padding:0;overflow-x:hidden;}
+body{
+  background:radial-gradient(1200px 600px at 15% -10%, #14202c 0%, var(--bg) 55%) fixed, var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{
+  font-family:'Bebas Neue', 'Inter', sans-serif;
+  letter-spacing:.03em;
+  font-weight:400;
+}
+::selection{background:var(--gold);color:#111;}
+a{color:inherit;}
+button{font-family:inherit;cursor:pointer;}
+::-webkit-scrollbar{height:8px;width:8px;}
+::-webkit-scrollbar-thumb{background:var(--surface-2);border-radius:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ---------- TOP BAR ---------- */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;gap:24px;
+  flex-wrap:wrap;
+  padding:16px 28px;
+  padding-top:calc(16px + env(safe-area-inset-top));
+  padding-left:calc(28px + env(safe-area-inset-left));
+  padding-right:calc(28px + env(safe-area-inset-right));
+  background:rgba(9,11,15,.86);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.brand{
+  display:flex;align-items:center;gap:10px;
+  font-size:26px;
+  color:var(--gold);
+  white-space:nowrap;
+}
+.brand .dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 12px var(--red);}
+.nav{display:flex;gap:4px;flex:1;}
+.nav button{
+  background:none;border:none;color:var(--muted);
+  padding:9px 16px;border-radius:999px;font-size:14.5px;font-weight:600;
+  transition:.2s;
+}
+.nav button:hover{color:var(--text);}
+.nav button.active{background:var(--surface-2);color:var(--gold);}
+.mood-btn{
+  display:flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,var(--gold),#c98936);
+  color:#161005;font-weight:800;border:none;
+  padding:10px 18px;border-radius:999px;font-size:14px;
+  box-shadow:0 8px 24px -8px rgba(227,168,87,.6);
+  transition:transform .15s ease;
+  white-space:nowrap;
+}
+.mood-btn:hover{transform:translateY(-2px);}
+.mood-btn:active{transform:translateY(0);}
+.lang-switch{display:flex;gap:4px;flex:0 0 auto;}
+.lang-flag{
+  background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+  width:34px;height:34px;font-size:11px;font-weight:800;letter-spacing:.02em;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--muted);transition:.15s;font-family:'Inter',sans-serif;
+}
+.lang-flag.active{color:var(--gold);border-color:var(--gold-dim);background:var(--surface);}
+.mood-btn.alt-purple{background:linear-gradient(135deg,#c9a6f5,#8b5fe0);color:#1c0f33;box-shadow:0 8px 24px -8px rgba(139,95,224,.55);}
+.mood-btn.alt-teal{background:linear-gradient(135deg,#7fe3cd,#2f9e88);color:#03231d;box-shadow:0 8px 24px -8px rgba(47,158,136,.55);}
+.mood-btn.alt-cal{background:linear-gradient(135deg,#8ab4f5,#4f6fd6);color:#0c1533;box-shadow:0 8px 24px -8px rgba(79,111,214,.55);}
+.mood-btn.alt-universe{background:linear-gradient(135deg,#7ee0d0,#1f9e8a);color:#04231c;box-shadow:0 8px 24px -8px rgba(31,158,138,.55);}
+#universesDetail[hidden]{display:none;}
+#universesList[hidden]{display:none;}
+#upcomingPlatformFilters[hidden]{display:none;}
+.upcoming-tabs{display:flex;gap:8px;padding:0 24px 16px;}
+.upcoming-tab{
+  flex:1;background:var(--bg-soft);border:1px solid var(--line);color:var(--muted);
+  padding:11px 10px;border-radius:999px;font-weight:700;font-size:13.5px;
+}
+.upcoming-tab.active{background:var(--gold);color:#161005;border-color:var(--gold);}
+.platform-logo{width:16px;height:16px;border-radius:4px;object-fit:cover;vertical-align:-3px;margin-right:5px;}
+.platform-filters{display:flex;gap:8px;overflow-x:auto;padding:0 24px 16px;}
+.platform-filter-btn{
+  flex:0 0 auto;display:flex;align-items:center;background:var(--bg-soft);border:1px solid var(--line);color:var(--muted);
+  padding:8px 14px;border-radius:999px;font-weight:700;font-size:12.5px;white-space:nowrap;
+}
+.platform-filter-btn .platform-logo{margin-right:6px;width:18px;height:18px;}
+.platform-filter-btn.active{background:var(--gold);color:#161005;border-color:var(--gold);}
+
+/* ---------- LAYOUT ---------- */
+.view{padding:28px;max-width:1400px;margin:0 auto;}
+.view[hidden]{display:none;}
+
+.section-title{
+  display:flex;align-items:baseline;gap:12px;margin:34px 0 14px;
+}
+.section-title h2{font-size:26px;color:var(--text);margin:0;}
+.section-title .eyebrow{
+  font-family:'Inter';font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--gold-dim);font-weight:700;
+}
+.section-title .rule{flex:1;height:1px;background:var(--line);}
+
+/* platform pill row on shelf headers */
+.platform-icon{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#111;}
+
+/* ---------- SHELF ---------- */
+.shelf-row{display:flex;gap:16px;overflow-x:auto;padding:6px 2px 18px;scroll-snap-type:x proximity;}
+
+/* ---------- HERO CAROUSEL ---------- */
+.hero-carousel{
+  position:relative;height:72vh;min-height:400px;max-height:620px;
+  border-radius:18px;overflow:hidden;margin-bottom:32px;background:var(--surface);
+}
+.hero-slide{
+  position:absolute;inset:0;opacity:0;pointer-events:none;
+  transition:opacity 1s ease;
+  background-size:cover;background-position:center 20%;
+  display:flex;align-items:flex-end;cursor:pointer;
+}
+.hero-slide.active{opacity:1;pointer-events:auto;}
+.hero-slide::after{
+  content:"";position:absolute;inset:0;
+  background:
+    linear-gradient(180deg, rgba(9,11,15,0) 25%, rgba(9,11,15,.55) 65%, var(--bg) 100%),
+    linear-gradient(90deg, rgba(9,11,15,.7) 0%, rgba(9,11,15,.1) 55%, transparent 100%);
+}
+.hero-content{position:relative;z-index:2;padding:32px 34px;max-width:620px;}
+.hero-platform-badge{
+  display:inline-flex;align-items:center;gap:8px;background:rgba(9,11,15,.55);backdrop-filter:blur(6px);
+  padding:6px 14px;border-radius:999px;font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  margin-bottom:16px;border:1px solid rgba(255,255,255,.12);
+}
+.hero-content h2{font-family:'Bebas Neue';font-size:clamp(30px,6vw,52px);margin:0 0 12px;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.6);line-height:1.02;}
+.hero-meta{display:flex;gap:14px;align-items:center;color:rgba(255,255,255,.88);font-size:13px;margin-bottom:18px;font-weight:600;}
+.hero-info-btn{position:relative;z-index:3;}
+.hero-dots{position:absolute;bottom:18px;right:22px;z-index:3;display:flex;gap:6px;}
+.hero-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.35);transition:.25s;}
+.hero-dot.active{background:#fff;width:22px;border-radius:4px;}
+@media(max-width:640px){
+  .hero-carousel{height:58vh;min-height:340px;border-radius:12px;}
+  .hero-content{padding:22px 20px;}
+}
+.shelf-row::-webkit-scrollbar{height:6px;}
+
+/* ---------- POSTER CARD ---------- */
+.card{
+  position:relative;flex:0 0 auto;width:150px;scroll-snap-align:start;
+  border-radius:var(--radius);overflow:hidden;background:var(--surface);
+  border:1px solid var(--line);
+  transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s;
+  cursor:pointer;
+}
+.card:hover{transform:translateY(-6px) scale(1.03);box-shadow:var(--shadow),0 0 0 1px var(--gold-dim);z-index:2;}
+.card img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;background:var(--surface-2);}
+.card .noimg{width:100%;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;padding:10px;background:linear-gradient(160deg,var(--surface),var(--surface-2));}
+.card .meta{padding:8px 9px 10px;}
+.card .title{font-size:13px;font-weight:700;line-height:1.25;margin:0 0 4px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:32px;}
+.card .sub{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;}
+.rating-chip{
+  display:inline-flex;align-items:center;gap:3px;background:rgba(227,168,87,.14);
+  color:var(--gold);border-radius:5px;padding:1px 5px;font-weight:700;font-size:11px;
+}
+.watched-dot{
+  position:absolute;top:7px;right:7px;width:11px;height:11px;border-radius:50%;
+  background:var(--green);box-shadow:0 0 0 2px rgba(9,11,15,.85), 0 0 8px rgba(76,175,125,.8);
+  display:none;
+}
+.card.is-watched .watched-dot{display:block;}
+.fav-toggle{
+  position:absolute;top:6px;left:6px;width:26px;height:26px;border-radius:50%;
+  background:rgba(9,11,15,.65);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;
+  opacity:0;transition:opacity .18s, background .18s, transform .15s;
+}
+.card:hover .fav-toggle{opacity:1;}
+.fav-toggle.active{opacity:1;color:var(--red);background:rgba(9,11,15,.85);}
+.fav-toggle:active{transform:scale(.88);}
+
+/* empty state */
+.empty{
+  border:1px dashed var(--line);border-radius:var(--radius);padding:40px 24px;text-align:center;color:var(--muted);
+}
+.empty b{color:var(--text);}
+
+/* ---------- SEARCH ---------- */
+.filters{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;
+}
+.field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;font-weight:700;}
+.field input,.field select{
+  width:100%;background:var(--bg-soft);border:1px solid var(--line);color:var(--text);
+  padding:10px 12px;border-radius:8px;font-size:16px;outline:none;transition:border-color .15s;
+}
+.field input:focus,.field select:focus{border-color:var(--gold-dim);}
+.field.range{display:flex;flex-direction:column;}
+.field.range .val{color:var(--gold);font-weight:700;}
+.search-actions{grid-column:1/-1;display:flex;gap:10px;justify-content:flex-end;margin-top:2px;}
+.btn{
+  border:1px solid var(--line);background:var(--surface-2);color:var(--text);
+  padding:10px 18px;border-radius:8px;font-weight:700;font-size:13.5px;transition:.15s;
+}
+.btn:hover{border-color:var(--gold-dim);}
+.btn.primary{background:var(--gold);color:#161005;border-color:var(--gold);}
+.btn.primary:hover{filter:brightness(1.08);}
+
+.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;margin-top:22px;}
+
+/* ---------- FAVORITES LIST (stile Spotify) ---------- */
+.fav-toolbar{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:22px;}
+.fav-toolbar .subtabs{margin-bottom:0;}
+.fav-list{display:flex;flex-direction:column;gap:6px;}
+.fav-row{
+  display:flex;align-items:center;gap:14px;padding:9px 12px;border-radius:10px;
+  background:var(--surface);border:1px solid var(--line);cursor:pointer;
+  transition:background .15s, transform .15s;
+}
+.fav-row:hover{background:var(--surface-2);transform:translateX(3px);}
+.fav-row img{width:52px;height:52px;border-radius:8px;object-fit:cover;flex:0 0 auto;box-shadow:0 4px 10px -4px rgba(0,0,0,.6);}
+.fav-row .noimg-mini{
+  width:52px;height:52px;border-radius:8px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  font-size:9px;color:var(--muted);background:var(--surface-2);text-align:center;padding:2px;line-height:1.1;
+}
+.fav-row .fav-row-info{flex:1;min-width:0;}
+.fav-row .fav-row-title{font-weight:700;font-size:14.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fav-row .fav-row-sub{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center;margin-top:3px;}
+.fav-row .type-tag{font-size:10px;color:var(--muted);background:var(--surface-2);padding:2px 7px;border-radius:6px;font-weight:700;}
+.fav-row .fav-row-actions{display:flex;align-items:center;gap:12px;flex:0 0 auto;}
+.fav-row .fav-watched-dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(76,175,125,.8);display:none;flex:0 0 auto;}
+.fav-row.is-watched .fav-watched-dot{display:block;}
+.fav-row .fav-remove{
+  background:none;border:none;color:var(--muted);font-size:16px;padding:4px;
+  opacity:0;transition:opacity .15s, color .15s;flex:0 0 auto;
+}
+.fav-row:hover .fav-remove{opacity:1;}
+.fav-row .fav-remove:hover{color:var(--red);}
+.subtabs{display:flex;gap:8px;margin-bottom:18px;}
+.subtabs button{
+  background:var(--surface);border:1px solid var(--line);color:var(--muted);
+  padding:8px 16px;border-radius:999px;font-weight:700;font-size:13px;
+}
+.subtabs button.active{color:var(--gold);border-color:var(--gold-dim);background:var(--surface-2);}
+
+/* ---------- MODAL ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(6,7,9,.78);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.overlay.open{opacity:1;pointer-events:auto;}
+.modal{
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  max-width:820px;width:100%;max-height:88vh;overflow-y:auto;
+  box-shadow:0 40px 80px -20px rgba(0,0,0,.8);
+  transform:translateY(14px);transition:transform .2s;
+}
+.overlay.open .modal{transform:translateY(0);}
+.modal-hero{position:relative;display:flex;gap:22px;padding:24px;}
+.modal-hero img{width:160px;border-radius:10px;flex:0 0 auto;box-shadow:var(--shadow);}
+.modal-close{
+  position:relative;top:0;right:0;width:34px;height:34px;border-radius:50%;flex:0 0 auto;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--text);font-size:16px;
+  pointer-events:auto;z-index:5;
+}
+.modal-sticky-header{
+  position:sticky;top:0;z-index:20;background:var(--surface);
+  display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  padding:22px 24px 16px;border-bottom:1px solid var(--line);
+}
+.modal-sticky-header h3{margin:0;font-size:28px;color:var(--text);}
+.modal-sticky-header p{margin:6px 0 0;color:var(--muted);font-size:13.5px;}
+.mood-body{padding:20px 24px 28px;}
+.mood-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:18px 0;}
+.mood-actions{display:flex;gap:10px;justify-content:flex-end;margin-bottom:18px;}
+.mood-tile.selected{border-color:var(--gold);background:var(--surface-2);box-shadow:0 0 0 2px rgba(227,168,87,.25);}
+.match-toggle{
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;margin-bottom:16px;font-size:13.5px;font-weight:600;color:var(--text);
+}
+.match-toggle input{width:18px;height:18px;flex:0 0 auto;}
+.mood-grid-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:0 0 8px;}
+.person-link{
+  background:none;border:none;color:var(--gold);font:inherit;font-weight:700;
+  cursor:pointer;padding:0;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;
+}
+.person-link:hover{color:#f2c17c;}
+.close-bar{position:sticky;top:0;z-index:30;display:flex;justify-content:flex-end;padding:12px 16px 0;background:linear-gradient(var(--surface) 60%, transparent);}
+.modal-info h3{font-size:30px;margin:0 0 6px;}
+.modal-info .tagrow{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px;}
+.tagpill{background:var(--surface-2);border:1px solid var(--line);color:var(--muted);font-size:11.5px;padding:3px 10px;border-radius:999px;}
+.modal-info p.overview{font-size:14px;line-height:1.6;color:#d8dbe0;max-height:110px;overflow:auto;}
+.modal-info .cast{font-size:12.5px;color:var(--muted);margin-top:10px;}
+.modal-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.seasons{padding:0 24px 24px;}
+.seasons h4{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 12px;}
+.season-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;background:var(--bg-soft);border:1px solid var(--line);border-radius:8px;margin-bottom:8px;
+}
+.season-row .s-name{font-size:14px;font-weight:600;}
+.season-check{
+  width:22px;height:22px;border-radius:6px;border:1.5px solid var(--line);background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;color:transparent;font-size:13px;font-weight:900;
+}
+.season-check.checked{background:var(--green);border-color:var(--green);color:#0a1a12;}
+.season-expand{
+  width:22px;height:22px;border-radius:6px;border:1px solid var(--line);background:var(--surface-2);
+  color:var(--muted);font-size:11px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-right:8px;
+}
+.season-row{gap:4px;}
+.episodes-list{padding:2px 4px 10px 30px;}
+.episode-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);}
+.episode-row:last-child{border-bottom:none;}
+.episode-row img{width:64px;height:40px;border-radius:6px;object-fit:cover;flex:0 0 auto;background:var(--surface-2);}
+.ep-noimg{width:64px;height:40px;border-radius:6px;background:var(--surface-2);flex:0 0 auto;}
+.ep-info{flex:1;min-width:0;}
+.ep-title{font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.ep-overview{font-size:11.5px;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ep-check{
+  width:22px;height:22px;border-radius:6px;border:1.5px solid var(--line);background:var(--surface-2);
+  color:transparent;font-size:12px;font-weight:900;flex:0 0 auto;
+}
+.ep-check.checked{background:var(--green);border-color:var(--green);color:#0a1a12;}
+
+/* ---------- VOTO PERSONALE ---------- */
+.user-rating-row{margin-top:14px;}
+.user-rating-row .urr-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;display:block;margin-bottom:8px;}
+
+/* ---------- RECENSIONI ---------- */
+.review-box{margin-top:16px;}
+.review-box textarea{
+  width:100%;min-height:80px;resize:vertical;background:var(--bg-soft);border:1px solid var(--line);
+  color:var(--text);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:16px;outline:none;
+}
+.review-box textarea:focus{border-color:var(--gold-dim);}
+.review-box-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
+.review-charcount{font-size:11.5px;color:var(--muted);}
+.review-list{margin-top:16px;display:flex;flex-direction:column;gap:10px;}
+.review-item{background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
+.review-item-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.review-author{font-weight:700;font-size:13px;color:var(--text);}
+.review-item-rating{color:var(--gold);font-weight:700;font-size:12.5px;}
+.review-date{color:var(--muted);font-size:11px;}
+.review-report-btn{background:none;border:none;color:var(--muted);font-size:11px;text-decoration:underline;padding:0;}
+.review-report-btn:hover{color:var(--red);}
+.review-text{font-size:13px;color:#d8dbe0;line-height:1.5;white-space:pre-wrap;}
+.rating-pills{display:flex;gap:4px;flex-wrap:wrap;}
+.rating-pill{
+  width:27px;height:27px;border-radius:7px;background:var(--surface-2);border:1px solid var(--line);
+  color:var(--muted);font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;
+}
+.rating-pill.active{background:var(--gold);color:#161005;border-color:var(--gold);}
+
+/* ---------- PIATTAFORME DI STREAMING ---------- */
+.watch-providers{padding:0 24px 6px;}
+.watch-providers h4{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;}
+.providers-row{display:flex;gap:9px;flex-wrap:wrap;}
+.providers-row img{width:44px;height:44px;border-radius:10px;box-shadow:0 4px 10px -4px rgba(0,0,0,.55);}
+.providers-note{font-size:12.5px;color:var(--muted);}
+
+/* ---------- MOOD MODAL ---------- */
+.mood-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;padding:24px;}
+.mood-tile{
+  background:var(--bg-soft);border:1px solid var(--line);border-radius:12px;padding:20px 10px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;font-weight:700;font-size:13.5px;
+  transition:.15s;color:var(--text);font-family:'Inter',sans-serif;
+}
+.mood-tile:hover{border-color:var(--gold);transform:translateY(-3px);background:var(--surface-2);}
+.mood-tile .emoji{font-size:28px;}
+.mood-result{padding:0 24px 24px;text-align:center;}
+.mood-result .pick-card{max-width:260px;margin:14px auto 0;}
+
+/* ---------- LOADING / TOAST ---------- */
+.loader{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;padding:20px 0;}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--gold);animation:sp 0.8s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.toast{
+  position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--surface-2);border:1px solid var(--gold-dim);color:var(--text);
+  padding:11px 20px;border-radius:999px;font-size:13.5px;font-weight:600;
+  opacity:0;pointer-events:none;transition:.25s;z-index:400;box-shadow:var(--shadow);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px;letter-spacing:.04em;}
+
+/* ---------- PROFILE SCREEN ---------- */
+.profile-screen{
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:40px;padding:24px;text-align:center;
+}
+.profile-screen h1{font-size:44px;color:var(--gold);margin:0;}
+.profile-screen p{color:var(--muted);margin:0;font-size:14px;}
+.profile-list{display:flex;gap:28px;flex-wrap:wrap;justify-content:center;}
+.profile-card{
+  background:none;border:none;color:var(--text);
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  padding:6px;border-radius:16px;transition:transform .18s;
+}
+.profile-card:hover{transform:translateY(-4px);}
+.profile-avatar{
+  width:120px;height:120px;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bebas Neue';font-size:52px;
+  border:2px solid transparent;transition:border-color .18s, box-shadow .18s;
+}
+.profile-card:hover .profile-avatar{border-color:var(--gold);box-shadow:0 0 0 4px rgba(227,168,87,.15);}
+.profile-card span.pname{font-size:15px;font-weight:600;color:var(--muted);}
+.profile-card:hover span.pname{color:var(--text);}
+.profile-switch-btn{
+  background:var(--surface-2);border:1px solid var(--line);color:var(--text);
+  width:36px;height:36px;border-radius:50%;font-weight:800;font-size:14px;
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.profile-menu-wrap{position:relative;}
+.profile-menu{
+  position:absolute;top:calc(100% + 8px);right:0;z-index:60;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  min-width:180px;box-shadow:var(--shadow);overflow:hidden;padding:6px;
+}
+.profile-menu-name{padding:8px 10px 10px;font-size:12.5px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--line);margin-bottom:6px;word-break:break-word;}
+.profile-menu button{
+  width:100%;text-align:left;background:none;border:none;color:var(--text);
+  padding:9px 10px;border-radius:8px;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;
+}
+.profile-menu button:hover{background:var(--surface-2);}
+.profile-menu button.danger{color:#e0668f;}
+
+@media(max-width:640px){
+  html,body{overflow-x:hidden;}
+  .topbar{padding:12px 14px;gap:8px 10px;padding-top:calc(12px + env(safe-area-inset-top));}
+  .brand{order:1;font-size:20px;}
+  .brand span.txt{display:none;}
+  .profile-switch-btn{order:2;margin-left:auto;}
+  .nav{order:3;flex:1 1 100%;overflow-x:auto;gap:6px;}
+  .nav button{padding:7px 12px;font-size:12.5px;white-space:nowrap;}
+  .mood-btn{order:4;flex:1 1 auto;padding:9px 6px;font-size:12px;justify-content:center;gap:5px;}
+  .view{padding:16px;}
+  .modal-hero{flex-direction:column;}
+  .modal-hero img{width:100%;max-width:220px;}
+}
+@media(max-width:380px){
+  .mood-btn span.txt-label{display:none;}
+}
+</style>
+<script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<div class="splash" id="splash">
+  <video id="introVideo" src="intro.mp4" autoplay muted playsinline></video>
+  <button class="splash-skip" id="splashSkip" type="button">Salta ▸</button>
+</div>
+
+<div class="onboarding-overlay" id="onboardingOverlay" hidden>
+  <button class="onboarding-skip" id="onboardingSkip" type="button">Salta ▸</button>
+  <div class="onboarding-slide" id="onboardingSlide">
+    <div class="onboarding-emoji" id="onbEmoji">🎭</div>
+    <h1 id="onbTitle">Scegli per mood</h1>
+    <p id="onbText">Dieci stati d'animo, dal "voglio ridere" al "col fiato sospeso": cerchiamo nell'intero catalogo, non solo tra i tuoi preferiti.</p>
+  </div>
+  <div class="onboarding-dots" id="onboardingDots"></div>
+  <button class="onboarding-next" id="onboardingNext" type="button">Avanti</button>
+</div>
+
+<div class="welcome-overlay" id="welcomeOverlay" hidden>
+  <div class="welcome-card">
+    <div class="brandmark"><span class="dot"></span><span>CineMood</span></div>
+    <h1 id="welcomeTitle">Come ti chiami?</h1>
+    <p id="welcomeSubtitle">Comparirà sulle tue recensioni — nessun'altra informazione richiesta.</p>
+    <button id="googleSignInBtn" type="button" class="google-btn">🔵 Accedi con Google</button>
+    <div class="welcome-divider"><span>oppure</span></div>
+    <input id="welcomeNameInput" maxlength="20" placeholder="Il tuo nome">
+    <button id="welcomeEnterBtn" type="button">Entra senza account</button>
+    <button id="recoverProfileBtn" type="button" class="link-btn">Hai già un profilo? Recupera i tuoi dati →</button>
+  </div>
+</div>
+
+<div id="app">
+<div class="topbar">
+  <div class="brand"><span class="dot"></span><span class="txt">CineMood</span></div>
+  <nav class="nav">
+    <button data-view="home" class="active" data-i18n="nav.home">Home</button>
+    <button data-view="popular" data-i18n="nav.popular">🔥 Popolari</button>
+    <button data-view="search" data-i18n="nav.search">Cerca</button>
+    <button data-view="favorites" data-i18n="nav.favorites">Preferiti</button>
+  </nav>
+  <div class="lang-switch">
+    <button class="lang-flag" id="langIt" type="button" title="Italiano">IT</button>
+    <button class="lang-flag" id="langEn" type="button" title="English">EN</button>
+  </div>
+  <button class="mood-btn alt-purple" id="openRecommended" type="button">✨ <span class="txt-label" data-i18n="btn.recommended">Consigliati</span></button>
+  <button class="mood-btn alt-teal" id="openUpcoming" type="button">🆕 <span class="txt-label" data-i18n="btn.upcoming">Uscite</span></button>
+  <button class="mood-btn alt-cal" id="openCalendar" type="button">📅 <span class="txt-label" data-i18n="btn.calendar">Calendario</span></button>
+  <button class="mood-btn alt-universe" id="openUniverses" type="button">🌐 <span class="txt-label" data-i18n="btn.universes">Universi</span></button>
+  <button class="mood-btn" id="openMood">🎭 <span class="txt-label" data-i18n="btn.mood">Mood</span></button>
+  <div class="profile-menu-wrap">
+    <button class="profile-switch-btn" id="switchProfileBtn" title="Il tuo profilo"></button>
+    <div class="profile-menu" id="profileMenu" hidden>
+      <div class="profile-menu-name" id="profileMenuName"></div>
+      <button type="button" id="menuRenameBtn">✏️ <span data-i18n="menu.rename">Cambia nome</span></button>
+      <button type="button" id="menuSignOutBtn" class="danger">🚪 <span data-i18n="menu.signOut">Esci</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- HOME -->
+<section class="view" id="view-home">
+  <div class="hero-carousel" id="heroCarousel">
+    <div class="loader" style="padding:80px 0;justify-content:center"><div class="spin"></div>Preparo la home…</div>
+  </div>
+  <div class="section-title" style="margin-top:6px;">
+    <span class="eyebrow" data-i18n="home.nowLabel">Al cinema ora</span>
+    <h2 data-i18n="home.cinema">🎦 Al cinema</h2>
+    <div class="rule"></div>
+  </div>
+  <div class="shelf-row" id="nowPlayingShelf"></div>
+  <div id="platformShelves"></div>
+  <div class="section-title">
+    <span class="eyebrow" data-i18n="home.thisWeek">Questa settimana</span>
+    <h2 data-i18n="home.topTrailers">🎬 Top 5 trailer della settimana</h2>
+    <div class="rule"></div>
+  </div>
+  <div class="shelf-row" id="weeklyTrending"></div>
+</section>
+
+<!-- POPULAR -->
+<section class="view" id="view-popular" hidden>
+  <div class="subtabs" id="popSubtabs">
+    <button data-pop="all" class="active" data-i18n="tabs.all">Tutti</button>
+    <button data-pop="movie" data-i18n="tabs.movies">Film</button>
+    <button data-pop="tv" data-i18n="tabs.tv">Serie TV</button>
+  </div>
+  <div class="filters">
+    <div class="field">
+      <label data-i18n="filter.sort">Ordina per</label>
+      <select id="pop-sort">
+        <option value="random" data-i18n="sort.random">Mix Casuale (Storico)</option>
+        <option value="popularity.desc" data-i18n="sort.popularity">Popolarità (Standard)</option>
+        <option value="vote_average.desc" data-i18n="sort.rating">Voto più alto</option>
+        <option value="primary_release_date.desc" data-i18n="sort.recent">Più recenti</option>
+      </select>
+    </div>
+    <div class="field">
+      <label data-i18n="filter.from">Dal</label>
+      <input id="pop-year-from" type="number" placeholder="es. 1990" min="1900" max="2030">
+    </div>
+    <div class="field">
+      <label data-i18n="filter.to">Al</label>
+      <input id="pop-year-to" type="number" placeholder="es. 2024" min="1900" max="2030">
+    </div>
+    <div class="field range">
+      <label><span data-i18n="filter.minRating">Voto minimo</span> <span class="val" id="pop-rating-val">0</span></label>
+      <input id="pop-rating" type="range" min="0" max="9" step="0.5" value="0">
+    </div>
+    <div class="search-actions">
+      <button class="btn primary" id="runPopular" data-i18n="btn.updateFilter">Aggiorna / Filtra</button>
+    </div>
+  </div>
+  <div id="popularResults" class="results-grid"></div>
+</section>
+
+<!-- SEARCH -->
+<section class="view" id="view-search" hidden>
+  <div class="filters">
+    <div class="field" style="grid-column:1/-1;">
+      <label data-i18n="filter.searchTitle">Cerca per titolo</label>
+      <input id="f-query" placeholder="es. Dune, Breaking Bad…">
+    </div>
+    <div class="field">
+      <label data-i18n="filter.type">Tipo</label>
+      <select id="f-type">
+        <option value="both" data-i18n="type.both">Film + Serie TV</option>
+        <option value="movie" data-i18n="type.movie">Solo film</option>
+        <option value="tv" data-i18n="type.tv">Solo serie TV</option>
+      </select>
+    </div>
+    <div class="field">
+      <label data-i18n="filter.actor">Attore / Attrice</label>
+      <input id="f-actor" placeholder="es. Zendaya">
+    </div>
+    <div class="field">
+      <label data-i18n="filter.genre">Genere</label>
+      <select id="f-genre"><option value="" data-i18n="filter.allGenres">Tutti i generi</option></select>
+    </div>
+    <div class="field">
+      <label data-i18n="filter.from">Dal</label>
+      <input id="f-year-from" type="number" placeholder="es. 1990" min="1900" max="2030">
+    </div>
+    <div class="field">
+      <label data-i18n="filter.to">Al</label>
+      <input id="f-year-to" type="number" placeholder="es. 2024" min="1900" max="2030">
+    </div>
+    <div class="field range">
+      <label><span data-i18n="filter.minRating">Voto minimo</span> <span class="val" id="f-rating-val">0</span></label>
+      <input id="f-rating" type="range" min="0" max="9" step="0.5" value="0">
+    </div>
+    <div class="field">
+      <label data-i18n="filter.sort">Ordina per</label>
+      <select id="f-sort">
+        <option value="popularity.desc" data-i18n="sort.popularity2">Popolarità</option>
+        <option value="vote_average.desc" data-i18n="sort.rating">Voto più alto</option>
+        <option value="primary_release_date.desc" data-i18n="sort.recent">Più recenti</option>
+      </select>
+    </div>
+    <div class="search-actions">
+      <button class="btn" id="clearFilters" data-i18n="btn.clear">Pulisci</button>
+      <button class="btn primary" id="runSearch" data-i18n="btn.search">Cerca</button>
+    </div>
+  </div>
+  <div id="searchResults"></div>
+</section>
+
+<!-- FAVORITES -->
+<section class="view" id="view-favorites" hidden>
+  <div class="fav-toolbar">
+    <div class="subtabs">
+      <button data-fav="all" class="active" data-i18n="tabs.all">Tutti</button>
+      <button data-fav="movie" data-i18n="tabs.movies">Film</button>
+      <button data-fav="tv" data-i18n="tabs.tv">Serie TV</button>
+    </div>
+    <div class="field" style="max-width:200px;">
+      <label data-i18n="filter.sort">Ordina per</label>
+      <select id="fav-sort">
+        <option value="alpha" data-i18n="sort.alpha">Alfabetico</option>
+        <option value="year" data-i18n="sort.year">Anno</option>
+        <option value="rating" data-i18n="sort.rating">Voto</option>
+      </select>
+    </div>
+  </div>
+  <div id="favGrid" class="fav-list"></div>
+</section>
+
+<footer><span data-i18n="footer.text">CineMood · dati forniti da TMDB · uso personale</span> · <a href="privacy.html" style="color:var(--muted);">Privacy Policy</a> · <a href="mailto:ricvali89@gmail.com?subject=CineMood%20-%20Segnalazione&body=Descrivi%20qui%20il%20problema%20o%20il%20suggerimento%3A%0A%0A" style="color:var(--muted);" data-i18n="footer.report">🐛 Segnala un problema</a> · <button id="protectProfileBtn" type="button" class="footer-link-btn" data-i18n="footer.protect">🔒 Proteggi il tuo profilo</button> · <button id="linkGoogleBtn" type="button" class="footer-link-btn">🔵 Collega Google</button></footer>
+
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="overlay" id="detailOverlay">
+  <div class="modal" id="detailModal"></div>
+</div>
+
+<!-- MOOD MODAL -->
+<div class="overlay" id="moodOverlay">
+  <div class="modal" id="moodModal">
+    <div class="modal-sticky-header">
+      <div>
+        <h3 data-i18n="mood.title">Che mood hai stasera?</h3>
+        <p data-i18n="mood.subtitle">Scegli un mood, affina con anno/piattaforma se vuoi, poi cerca in tutto il catalogo.</p>
+      </div>
+      <button class="modal-close" id="moodClose" type="button">✕</button>
+    </div>
+    <div class="mood-body">
+      <label class="match-toggle">
+        <input type="checkbox" id="matchModeToggle">
+        <span data-i18n="mood.matchToggle">🤝 Modalità Match — trova qualcosa che piaccia a entrambi</span>
+      </label>
+      <p class="mood-grid-label" id="moodGridLabel1" data-i18n="mood.yourMood">Il tuo mood</p>
+      <div class="mood-grid" id="moodGrid"></div>
+      <div id="matchSecondBlock" hidden>
+        <p class="mood-grid-label" data-i18n="mood.partnerMood">Il mood del/la partner</p>
+        <div class="mood-grid" id="moodGrid2"></div>
+      </div>
+      <div class="mood-filters">
+        <div class="field">
+          <label data-i18n="filter.from">Dal</label>
+          <input id="mood-year-from" type="number" placeholder="es. 1990" min="1900" max="2030">
+        </div>
+        <div class="field">
+          <label data-i18n="filter.to">Al</label>
+          <input id="mood-year-to" type="number" placeholder="es. 2020" min="1900" max="2030">
+        </div>
+        <div class="field">
+          <label data-i18n="filter.platform">Piattaforma</label>
+          <select id="mood-platform"><option value="" data-i18n="filter.allPlatforms">Tutte</option></select>
+        </div>
+        <div class="field">
+          <label data-i18n="filter.sort">Ordina per</label>
+          <select id="mood-sort">
+            <option value="popularity.desc" data-i18n="sort.relevance">Rilevanza</option>
+            <option value="vote_average.desc" data-i18n="sort.rating">Voto più alto</option>
+            <option value="year.desc" data-i18n="sort.yearDesc">Anno (più recenti)</option>
+            <option value="year.asc" data-i18n="sort.yearAsc">Anno (più vecchi)</option>
+          </select>
+        </div>
+      </div>
+      <div class="mood-actions">
+        <button class="btn" id="moodHomeBtn" type="button" data-i18n="btn.backHome">🏠 Torna alla Home</button>
+        <button class="btn primary" id="moodSearchBtn" type="button" data-i18n="btn.search">Cerca</button>
+      </div>
+      <div id="moodResults"></div>
+    </div>
+  </div>
+</div>
+
+<!-- RECOMMENDED MODAL -->
+<div class="overlay" id="recOverlay">
+  <div class="modal" id="recModal">
+    <div class="modal-sticky-header">
+      <div>
+        <h3 data-i18n="rec.title">Consigliati per te</h3>
+        <p data-i18n="rec.subtitle">Basato sui titoli che hai segnato come visti.</p>
+      </div>
+      <button class="modal-close" id="recClose" type="button">✕</button>
+    </div>
+    <div class="mood-body">
+      <div id="recResults"></div>
+    </div>
+  </div>
+</div>
+
+<!-- UPCOMING MODAL -->
+<div class="overlay" id="upcomingOverlay">
+  <div class="modal" id="upcomingModal">
+    <div class="modal-sticky-header">
+      <div>
+        <h3 data-i18n="upc.title">Nuove uscite</h3>
+        <p id="upcomingSubtitle" data-i18n="upc.subtitle">Al cinema e in streaming questo mese.</p>
+      </div>
+      <button class="modal-close" id="upcomingClose" type="button">✕</button>
+    </div>
+    <div class="mood-body">
+      <div class="upcoming-tabs">
+        <button class="upcoming-tab active" id="upcTabCinema" type="button" data-i18n="upc.tabCinema">🎬 Al cinema</button>
+        <button class="upcoming-tab" id="upcTabStream" type="button" data-i18n="upc.tabStream">📺 In streaming</button>
+      </div>
+      <div id="upcomingPlatformFilters" class="platform-filters" hidden></div>
+      <div id="upcomingResults"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CALENDAR MODAL -->
+<div class="overlay" id="calendarOverlay">
+  <div class="modal" id="calendarModal">
+    <div class="modal-sticky-header">
+      <div>
+        <h3 data-i18n="cal.title">Calendario episodi</h3>
+        <p data-i18n="cal.subtitle">Prossimi episodi delle serie che segui nei preferiti.</p>
+      </div>
+      <button class="modal-close" id="calendarClose" type="button">✕</button>
+    </div>
+    <div class="mood-body">
+      <div id="calendarResults"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="universesOverlay">
+  <div class="modal" id="universesModal">
+    <div class="modal-sticky-header">
+      <div>
+        <h3 data-i18n="univ.title">Universi condivisi</h3>
+        <p data-i18n="univ.subtitle">Saghe e franchise da guardare in ordine, tutti insieme.</p>
+      </div>
+      <button class="modal-close" id="universesClose" type="button">✕</button>
+    </div>
+    <div class="mood-body">
+      <div id="universesList" class="mood-grid"></div>
+      <div id="universesDetail" hidden>
+        <button class="btn" id="universesBack" type="button">← <span data-i18n="univ.back">Tutti gli universi</span></button>
+        <h4 id="universesDetailTitle" style="margin:16px 0 4px;"></h4>
+        <p id="universesDetailNote" style="color:var(--muted);font-size:12.5px;margin-bottom:14px;"></p>
+        <div id="universesDetailGrid" class="results-grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= CONFIG ================= */
+const TMDB_KEY = "6e2c7242ba3e1415af239104bed17d5a";
+const OMDB_KEY = "6b25cb0d"; // gratuita su omdbapi.com/apikey.aspx
+const BASE = "https://api.themoviedb.org/3";
+const IMG = "https://image.tmdb.org/t/p/w500";
+const REGION = "IT";
+
+/* ---------- LINGUA ---------- */
+const I18N = {
+  it: {
+    "nav.home":"Home", "nav.popular":"🔥 Popolari", "nav.search":"Cerca", "nav.favorites":"Preferiti",
+    "btn.recommended":"Consigliati", "btn.upcoming":"Uscite", "btn.calendar":"Calendario", "btn.universes":"Universi", "btn.mood":"Mood",
+    "tabs.all":"Tutti", "tabs.movies":"Film", "tabs.tv":"Serie TV",
+    "filter.sort":"Ordina per", "filter.from":"Dal", "filter.to":"Al", "filter.minRating":"Voto minimo",
+    "filter.searchTitle":"Cerca per titolo", "filter.type":"Tipo", "filter.actor":"Attore / Attrice",
+    "filter.genre":"Genere", "filter.allGenres":"Tutti i generi", "filter.platform":"Piattaforma", "filter.allPlatforms":"Tutte",
+    "type.both":"Film + Serie TV", "type.movie":"Solo film", "type.tv":"Solo serie TV",
+    "sort.random":"Mix Casuale (Storico)", "sort.popularity":"Popolarità (Standard)", "sort.popularity2":"Popolarità",
+    "sort.rating":"Voto più alto", "sort.recent":"Più recenti", "sort.alpha":"Alfabetico", "sort.year":"Anno",
+    "sort.relevance":"Rilevanza", "sort.yearDesc":"Anno (più recenti)", "sort.yearAsc":"Anno (più vecchi)",
+    "btn.updateFilter":"Aggiorna / Filtra", "btn.clear":"Pulisci", "btn.search":"Cerca", "btn.backHome":"🏠 Torna alla Home",
+    "footer.text":"CineMood · dati forniti da TMDB · uso personale", "footer.report":"🐛 Segnala un problema",
+    "mood.title":"Che mood hai stasera?", "mood.subtitle":"Scegli un mood, affina con anno/piattaforma se vuoi, poi cerca in tutto il catalogo.",
+    "mood.matchToggle":"🤝 Modalità Match — trova qualcosa che piaccia a entrambi",
+    "mood.yourMood":"Il tuo mood", "mood.partnerMood":"Il mood del/la partner",
+    "rec.title":"Consigliati per te", "rec.subtitle":"Basato sui titoli che hai segnato come visti.",
+    "upc.title":"Nuove uscite", "upc.subtitle":"Al cinema e in streaming questo mese.", "upc.tabCinema":"🎬 Al cinema", "upc.tabStream":"📺 In streaming",
+    "cal.title":"Calendario episodi", "cal.subtitle":"Prossimi episodi delle serie che segui nei preferiti.", "univ.title":"Universi condivisi", "univ.subtitle":"Saghe e franchise da guardare in ordine, tutti insieme.", "univ.back":"Tutti gli universi",
+    "home.thisWeek":"Questa settimana", "home.trending":"🔥 Di tendenza", "home.topRated":"Novità",
+    "home.cinema":"🎦 Al cinema", "home.nowLabel":"Al cinema ora", "home.topTrailers":"🎬 Top 5 trailer della settimana",
+    "empty.favorites":"Ancora nessun preferito FILTER.", "empty.favoritesHint":"Aggiungine dalla Home o dalla Ricerca toccando il cuore ❤ sulla locandina.",
+    "empty.favMovies":"tra i film", "empty.favTv":"tra le serie TV",
+    "toast.added":"Aggiunto ai preferiti", "toast.removed":"Rimosso dai preferiti", "toast.syncFail":"⚠️ Salvataggio online non riuscito, riprovo più tardi",
+    "detail.director":"Regia:", "detail.cast":"Cast:", "detail.addFav":"♡ Aggiungi ai preferiti", "detail.inFav":"❤ Nei preferiti",
+    "detail.markWatched":"Segna come visto", "detail.watched":"✓ Visto", "detail.yourRating":"Il tuo voto", "detail.share":"📤 Condividi",
+    "review.title":"La tua recensione", "review.placeholder":"Cosa ne pensi? (facoltativo, max 500 caratteri)",
+    "review.publish":"Pubblica recensione", "review.saved":"Recensione salvata", "review.othersTitle":"Recensioni",
+    "review.none":"Nessuna recensione ancora — sii il primo!",
+    "review.report":"🚩 Segnala", "review.reportConfirm":"Vuoi segnalare questa recensione come inappropriata?",
+    "review.reported":"Recensione segnalata, grazie", "review.blocked":"⚠️ Il testo contiene parole non consentite",
+    "detail.seasons":"Stagioni", "detail.episodes":"episodi", "detail.watchOn":"Dove guardarlo", "detail.rentBuy":"Disponibile a noleggio o acquisto — vedi dove →",
+    "detail.related":"Ti potrebbe piacere anche", "detail.collection":"Fa parte di una saga", "detail.trailer":"🎬 Trailer",
+    "mood.emptyResult":"Nessun risultato con questi filtri: prova ad allargarli.", "mood.chooseFirst":"Scegli prima un mood qui sopra.",
+    "mood.choosePartner":"Scegli anche il mood del/la partner per trovare un match.",
+    "profile.change":"Cambia profilo", "menu.rename":"Cambia nome", "menu.signOut":"Esci",
+  },
+  en: {
+    "nav.home":"Home", "nav.popular":"🔥 Popular", "nav.search":"Search", "nav.favorites":"Favorites",
+    "btn.recommended":"For You", "btn.upcoming":"New Releases", "btn.calendar":"Calendar", "btn.universes":"Universes", "btn.mood":"Mood",
+    "tabs.all":"All", "tabs.movies":"Movies", "tabs.tv":"TV Shows",
+    "filter.sort":"Sort by", "filter.from":"From", "filter.to":"To", "filter.minRating":"Min rating",
+    "filter.searchTitle":"Search by title", "filter.type":"Type", "filter.actor":"Actor / Actress",
+    "filter.genre":"Genre", "filter.allGenres":"All genres", "filter.platform":"Platform", "filter.allPlatforms":"All",
+    "type.both":"Movies + TV Shows", "type.movie":"Movies only", "type.tv":"TV shows only",
+    "sort.random":"Random Mix (All-time)", "sort.popularity":"Popularity (Standard)", "sort.popularity2":"Popularity",
+    "sort.rating":"Highest rated", "sort.recent":"Most recent", "sort.alpha":"Alphabetical", "sort.year":"Year",
+    "sort.relevance":"Relevance", "sort.yearDesc":"Year (newest)", "sort.yearAsc":"Year (oldest)",
+    "btn.updateFilter":"Update / Filter", "btn.clear":"Clear", "btn.search":"Search", "btn.backHome":"🏠 Back Home",
+    "footer.text":"CineMood · data provided by TMDB · personal use", "footer.report":"🐛 Report a problem",
+    "mood.title":"What's your mood tonight?", "mood.subtitle":"Pick a mood, narrow by year/platform if you like, then search the whole catalog.",
+    "mood.matchToggle":"🤝 Match Mode — find something you'll both enjoy",
+    "mood.yourMood":"Your mood", "mood.partnerMood":"Your partner's mood",
+    "rec.title":"Recommended for you", "rec.subtitle":"Based on titles you've marked as watched.",
+    "upc.title":"New releases", "upc.subtitle":"In theaters and streaming this month.", "upc.tabCinema":"🎬 In theaters", "upc.tabStream":"📺 Streaming",
+    "cal.title":"Episode calendar", "cal.subtitle":"Upcoming episodes for the shows in your favorites.", "univ.title":"Shared universes", "univ.subtitle":"Franchises and sagas to watch in order, all in one place.", "univ.back":"All universes",
+    "home.thisWeek":"This week", "home.trending":"🔥 Trending", "home.topRated":"New",
+    "home.cinema":"🎦 In Theaters", "home.nowLabel":"In theaters now", "home.topTrailers":"🎬 Top 5 Trailers This Week",
+    "empty.favorites":"No favorites FILTER yet.", "empty.favoritesHint":"Add some from Home or Search by tapping the ❤ on a poster.",
+    "empty.favMovies":"among movies", "empty.favTv":"among TV shows",
+    "toast.added":"Added to favorites", "toast.removed":"Removed from favorites", "toast.syncFail":"⚠️ Online save failed, will retry later",
+    "detail.director":"Director:", "detail.cast":"Cast:", "detail.addFav":"♡ Add to favorites", "detail.inFav":"❤ In favorites",
+    "detail.markWatched":"Mark as watched", "detail.watched":"✓ Watched", "detail.yourRating":"Your rating", "detail.share":"📤 Share",
+    "review.title":"Your review", "review.placeholder":"What did you think? (optional, max 500 characters)",
+    "review.publish":"Publish review", "review.saved":"Review saved", "review.othersTitle":"Reviews",
+    "review.none":"No reviews yet — be the first!",
+    "review.report":"🚩 Report", "review.reportConfirm":"Report this review as inappropriate?",
+    "review.reported":"Review reported, thank you", "review.blocked":"⚠️ Your text contains words that aren't allowed",
+    "detail.seasons":"Seasons", "detail.episodes":"episodes", "detail.watchOn":"Where to watch", "detail.rentBuy":"Available to rent or buy — see where →",
+    "detail.related":"You might also like", "detail.collection":"Part of a saga", "detail.trailer":"🎬 Trailer",
+    "mood.emptyResult":"No results with these filters: try widening them.", "mood.chooseFirst":"Pick a mood above first.",
+    "mood.choosePartner":"Pick your partner's mood too, to find a match.",
+    "profile.change":"Switch profile", "menu.rename":"Change name", "menu.signOut":"Sign out",
+  }
+};
+
+function detectInitialLang(){
+  const saved = localStorage.getItem("cinemood-lang");
+  if(saved === "it" || saved === "en") return saved;
+  const nav = (navigator.language || "it").toLowerCase();
+  return nav.startsWith("it") ? "it" : "en";
+}
+let currentLang = detectInitialLang();
+
+function t(key){
+  return (I18N[currentLang] && I18N[currentLang][key]) || (I18N.it[key]) || key;
+}
+
+function applyStaticTranslations(){
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const key = el.dataset.i18n;
+    if(I18N[currentLang] && I18N[currentLang][key]) el.textContent = I18N[currentLang][key];
+  });
+  document.documentElement.lang = currentLang;
+  document.getElementById("langIt").classList.toggle("active", currentLang==="it");
+  document.getElementById("langEn").classList.toggle("active", currentLang==="en");
+}
+
+function setLang(lang){
+  if(lang!=="it" && lang!=="en") return;
+  currentLang = lang;
+  localStorage.setItem("cinemood-lang", lang);
+  applyStaticTranslations();
+  buildMoodGrid();
+  if(CURRENT_PROFILE){
+    document.getElementById("switchProfileBtn").title = t("profile.change");
+    buildHome(); renderFavorites();
+  }
+}
+document.getElementById("langIt").addEventListener("click", ()=> setLang("it"));
+document.getElementById("langEn").addEventListener("click", ()=> setLang("en"));
+applyStaticTranslations();
+
+const PLATFORMS = [
+  { id: 8,   name: "Netflix",      color:"#e50914" },
+  { id: 119, name: "Prime Video",  color:"#00a8e1" },
+  { id: 1899,name: "HBO Max",      color:"#9b4de0" },
+  { id: 350, name: "Apple TV+",    color:"#a1a1a6" },
+  { id: 531, name: "Paramount+",   color:"#0064ff" },
+  { id: 283, name: "Crunchyroll",  color:"#f47521" },
+  { id: 337, name: "Disney+",      color:"#113ccf" },
+  { id: 39,  name: "NOW",          color:"#00e5ff" },
+];
+
+// Loghi ufficiali delle piattaforme, presi da TMDB una sola volta all'avvio (non per ogni scheda).
+let platformLogosLoaded = false;
+async function loadPlatformLogos(){
+  if(platformLogosLoaded) return;
+  try{
+    const res = await tmdb("/watch/providers/movie", { watch_region: REGION });
+    const byId = {};
+    (res.results||[]).forEach(p=>{ byId[p.provider_id] = p.logo_path; });
+    PLATFORMS.forEach(p=>{ if(byId[p.id]) p.logo = `${IMG}${byId[p.id]}`; });
+    platformLogosLoaded = true;
+  }catch(e){
+    console.error("Loghi piattaforme non disponibili, resto sui soli nomi.", e);
+  }
+}
+function platformLogoTag(platform){
+  return platform && platform.logo
+    ? `<img src="${platform.logo}" alt="" style="width:16px;height:16px;min-width:16px;flex-shrink:0;border-radius:4px;object-fit:contain;vertical-align:-3px;margin-right:5px;display:inline-block;">`
+    : "";
+}
+
+const MOODS = [
+  { key:"relax",    labelIt:"Rilassato",   labelEn:"Relaxed",    emoji:"😌", genre:35 },
+  { key:"hype",     labelIt:"Carico",      labelEn:"Hyped",      emoji:"🔥", genre:28 },
+  { key:"malinc",   labelIt:"Malinconico", labelEn:"Melancholic",emoji:"🌧️", genre:18 },
+  { key:"avv",      labelIt:"Avventuroso", labelEn:"Adventurous",emoji:"🧭", genre:12 },
+  { key:"rom",      labelIt:"Romantico",   labelEn:"Romantic",   emoji:"💛", genre:10749 },
+  { key:"spens",    labelIt:"Spensierato", labelEn:"Light-hearted", emoji:"🎈", genre:16 },
+  { key:"tesa",     labelIt:"Col fiato sospeso", labelEn:"On the edge of your seat", emoji:"😬", genre:53 },
+  { key:"nost",     labelIt:"Nostalgico",  labelEn:"Nostalgic",  emoji:"📼", genre:14 },
+  { key:"motiv",    labelIt:"Motivato",    labelEn:"Motivated",  emoji:"💪", genre:99 },
+  { key:"pensier",  labelIt:"Contemplativo", labelEn:"Contemplative", emoji:"🌌", genre:878 },
+  { key:"horror",   labelIt:"Spaventato",   labelEn:"Scared",      emoji:"😱", genre:27 },
+  { key:"guerra",   labelIt:"Drammatico/Guerra", labelEn:"War & Drama", emoji:"🎖️", genre:10752 },
+  { key:"invest",   labelIt:"Investigativo", labelEn:"Investigative", emoji:"🕵️", genre:9648 },
+  { key:"family",   labelIt:"In famiglia",  labelEn:"Family time", emoji:"👨‍👩‍👧‍👦", genre:10751 },
+];
+function moodLabel(m){ return currentLang==="en" ? m.labelEn : m.labelIt; }
+
+let CURRENT_PROFILE = null;      // uid Firebase, assegnato in automatico
+let CURRENT_DISPLAY_NAME = "";   // nome mostrato, scelto dalla persona
+
+if(navigator.storage && navigator.storage.persist){
+  navigator.storage.persist().catch(()=>{});
+}
+
+let GENRES = { movie:{}, tv:{} };
+
+/* ================= FIREBASE (autenticazione anonima + Firestore) ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyC2N3Kt64HVWR5Quc6AF4BNEujt1qeKbL8",
+  authDomain: "cinemood-c3215.firebaseapp.com",
+  projectId: "cinemood-c3215",
+  storageBucket: "cinemood-c3215.firebasestorage.app",
+  messagingSenderId: "732937260760",
+  appId: "1:732937260760:web:6621ff4cd1d5da9d80d1ad"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+const db = firebase.firestore();
+
+const store = {
+  async get(key, fallback){
+    try{
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    }catch(e){ return fallback; }
+  },
+  async set(key,val){
+    try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ console.error(e); }
+  }
+};
+let FAVORITES = { movie:[], tv:[] };       // arrays of {id,title,poster_path,vote_average,genre_ids,media_type}
+let WATCHED = { movie:{}, tv:{} };          // id -> true
+let WATCHED_SEASONS = {};                   // tvId -> [seasonNumbers]
+let WATCHED_EPISODES = {};                  // "tvId-seasonNum" -> [episodeNumbers]
+let RATINGS = { movie:{}, tv:{} };          // id -> 1..10 (voto personale)
+let cloudOk = true;
+
+function pKey(base){ return `cinemood-${base}::${CURRENT_PROFILE}`; }
+function emptyProfileData(){ return { displayName:"", favorites:{movie:[],tv:[]}, watched:{movie:{},tv:{}}, watchedSeasons:{}, watchedEpisodes:{}, ratings:{movie:{},tv:{}} }; }
+
+async function getReviewsFor(mediaType, id){
+  const titleId = `${mediaType}-${id}`;
+  try{
+    const [entriesSnap, reportsSnap] = await Promise.all([
+      db.collection("reviews").doc(titleId).collection("entries").get(),
+      db.collection("reports").where("titleId","==",titleId).get()
+    ]);
+    const reportCounts = {};
+    reportsSnap.docs.forEach(d=>{
+      const authorUid = d.data().authorUid;
+      reportCounts[authorUid] = (reportCounts[authorUid]||0) + 1;
+    });
+    return entriesSnap.docs.map(d=>({...d.data(), reportCount: reportCounts[d.data().uid]||0}));
+  }catch(e){
+    console.error("Recensioni non raggiungibili.", e);
+    return [];
+  }
+}
+
+const BLOCKED_WORDS = [
+  "cazzo","stronzo","stronza","merda","puttana","troia","bastardo","idiota","coglione",
+  "fuck","shit","bitch","bastard","asshole","cunt","whore"
+];
+function containsBlockedWords(text){
+  const lower = (text||"").toLowerCase();
+  return BLOCKED_WORDS.some(w => lower.includes(w));
+}
+
+async function saveMyReview(mediaType, id, ratingVal, text){
+  if(!CURRENT_PROFILE){ toast(t("toast.syncFail")); return; }
+  if(containsBlockedWords(text)){
+    toast(t("review.blocked"));
+    return;
+  }
+  try{
+    await db.collection("reviews").doc(`${mediaType}-${id}`).collection("entries").doc(CURRENT_PROFILE).set({
+      uid: CURRENT_PROFILE,
+      author: CURRENT_DISPLAY_NAME || "Anonimo",
+      rating: ratingVal||null,
+      text: (text||"").slice(0,500),
+      date: new Date().toISOString().slice(0,10)
+    });
+    toast(t("review.saved"));
+  }catch(e){
+    console.error("Salvataggio recensione fallito.", e);
+    toast(t("toast.syncFail"));
+  }
+}
+
+async function reportReview(mediaType, id, authorUid){
+  if(!CURRENT_PROFILE || authorUid===CURRENT_PROFILE) return;
+  const titleId = `${mediaType}-${id}`;
+  try{
+    await db.collection("reports").doc(`${titleId}_${authorUid}_${CURRENT_PROFILE}`).set({
+      titleId, authorUid, reporterUid: CURRENT_PROFILE, date: new Date().toISOString().slice(0,10)
+    });
+    toast(t("review.reported"));
+  }catch(e){
+    console.error("Segnalazione fallita.", e);
+    toast(t("toast.syncFail"));
+  }
+}
+
+async function loadState(){
+  let data = emptyProfileData();
+  try{
+    const doc = await db.collection("profiles").doc(CURRENT_PROFILE).get();
+    if(doc.exists){
+      data = { ...emptyProfileData(), ...doc.data() };
+    } else {
+      await db.collection("profiles").doc(CURRENT_PROFILE).set(data);
+    }
+    cloudOk = true;
+  }catch(e){
+    console.error("Cloud non raggiungibile, uso la copia locale.", e);
+    data = await store.get(pKey("data"), null) || emptyProfileData();
+    cloudOk = false;
+  }
+  CURRENT_DISPLAY_NAME = data.displayName || "";
+  FAVORITES = data.favorites || {movie:[],tv:[]};
+  WATCHED = data.watched || {movie:{},tv:{}};
+  WATCHED_SEASONS = data.watchedSeasons || {};
+  WATCHED_EPISODES = data.watchedEpisodes || {};
+  RATINGS = data.ratings || {movie:{},tv:{}};
+  store.set(pKey("data"), data);
+}
+
+async function persistAll(){
+  const data = { displayName:CURRENT_DISPLAY_NAME, favorites:FAVORITES, watched:WATCHED, watchedSeasons:WATCHED_SEASONS, watchedEpisodes:WATCHED_EPISODES, ratings:RATINGS };
+  store.set(pKey("data"), data);
+  try{
+    await db.collection("profiles").doc(CURRENT_PROFILE).set(data);
+    cloudOk = true;
+  }catch(e){
+    console.error("Salvataggio cloud fallito, resta salvato solo sul telefono.", e);
+    cloudOk = false;
+    toast(t("toast.syncFail"));
+  }
+}
+
+/* ================= TMDB HELPERS ================= */
+async function tmdb(path, params={}){
+  const url = new URL(BASE+path);
+  url.searchParams.set("api_key", TMDB_KEY);
+  url.searchParams.set("language", currentLang==="en" ? "en-US" : "it-IT");
+  Object.entries(params).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=="") url.searchParams.set(k,v); });
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("TMDB error "+res.status);
+  return res.json();
+}
+
+// Voti esterni (IMDb / Rotten Tomatoes / Metacritic) via OMDb, con cache locale
+// per non consumare inutilmente le 1.000 richieste gratuite giornaliere.
+async function getExternalRatings(imdbId){
+  if(!imdbId || OMDB_KEY.startsWith("INSERISCI")) return null;
+  const cacheKey = "omdb-"+imdbId;
+  try{
+    const cached = localStorage.getItem(cacheKey);
+    if(cached) return JSON.parse(cached); // può essere anche null salvato, cioè "già provato, niente trovato"
+  }catch(e){}
+
+  try{
+    const res = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_KEY}`);
+    const data = await res.json();
+    let result = null;
+    if(data && data.Response === "True" && Array.isArray(data.Ratings)){
+      const find = src => (data.Ratings.find(r=>r.Source===src)||{}).Value || null;
+      result = {
+        imdb: find("Internet Movie Database"),
+        rt: find("Rotten Tomatoes"),
+        metacritic: find("Metacritic"),
+      };
+      if(!result.imdb && !result.rt && !result.metacritic) result = null;
+    }
+    localStorage.setItem(cacheKey, JSON.stringify(result));
+    return result;
+  }catch(e){
+    console.error("OMDb non raggiungibile.", e);
+    return null; // nessun errore mostrato all'utente, la scheda funziona lo stesso senza questa riga
+  }
+}
+
+function posterUrl(p){ return p ? IMG+p : null; }
+
+/* ================= UI HELPERS ================= */
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+function isFav(mediaType, id){ return FAVORITES[mediaType].some(x=>x.id===id); }
+function isWatched(mediaType, id){ return !!WATCHED[mediaType][id]; }
+
+function toggleFavorite(item, mediaType){
+  const list = FAVORITES[mediaType];
+  const idx = list.findIndex(x=>x.id===item.id);
+  if(idx>=0){ list.splice(idx,1); toast(t("toast.removed")); }
+  else{ list.push(item); toast(t("toast.added")); }
+  persistAll();
+  refreshAllCardStates();
+}
+
+function toggleWatched(mediaType, id){
+  WATCHED[mediaType][id] = !WATCHED[mediaType][id];
+  if(!WATCHED[mediaType][id]) delete WATCHED[mediaType][id];
+  persistAll();
+  refreshAllCardStates();
+}
+
+function refreshAllCardStates(){
+  document.querySelectorAll(".card[data-id]").forEach(card=>{
+    const id = Number(card.dataset.id), mt = card.dataset.mt;
+    card.classList.toggle("is-watched", isWatched(mt,id));
+    const favBtn = card.querySelector(".fav-toggle");
+    if(favBtn) favBtn.classList.toggle("active", isFav(mt,id));
+  });
+}
+
+/* build a poster card element */
+function buildCard(item, mediaType, opts={}){
+  const card = document.createElement("div");
+  card.className = "card";
+  card.dataset.id = item.id;
+  card.dataset.mt = mediaType;
+  card.tabIndex = 0;
+  card.setAttribute("role","button");
+  if(isWatched(mediaType, item.id)) card.classList.add("is-watched");
+
+  const poster = posterUrl(item.poster_path);
+  const title = item.title || item.name || "Senza titolo";
+  const date = (item.release_date || item.first_air_date || "").slice(0,4);
+  const rating = item.vote_average ? item.vote_average.toFixed(1) : "—";
+
+  card.innerHTML = `
+    <span class="watched-dot"></span>
+    <button class="fav-toggle ${isFav(mediaType,item.id)?'active':''}" title="Preferiti">❤</button>
+    ${poster ? `<img loading="lazy" src="${poster}" alt="${title}">` : `<div class="noimg">${title}</div>`}
+    <div class="meta">
+      ${opts.badge ? `<span class="tagpill" style="display:inline-block;margin-bottom:6px;">${opts.badge}</span>` : ""}
+      <p class="title">${title}</p>
+      <div class="sub"><span>${date||"—"}</span><span class="rating-chip">★ ${rating}</span></div>
+    </div>
+  `;
+  card.querySelector(".fav-toggle").addEventListener("click",(e)=>{
+    e.stopPropagation();
+    toggleFavorite({
+      id:item.id, title:title, poster_path:item.poster_path,
+      vote_average:item.vote_average, genre_ids:item.genre_ids||item.genres?.map(g=>g.id)||[],
+      media_type:mediaType
+    }, mediaType);
+  });
+  card.addEventListener("click", ()=>{
+    ["moodOverlay","recOverlay","upcomingOverlay","universesOverlay","calendarOverlay"].forEach(oid=>{
+      const el = document.getElementById(oid);
+      if(el && el.classList.contains("open")){
+        returnOverlayId = oid;
+        el.classList.remove("open");
+      }
+    });
+    openDetail(item.id, mediaType);
+  });
+  card.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter" || e.key===" "){
+      e.preventDefault();
+      card.click();
+    }
+  });
+  return card;
+}
+
+/* ================= HOME ================= */
+let usedHomeShelfIds = new Set();
+
+async function buildHome(){
+  usedHomeShelfIds = new Set(); // evita che lo stesso titolo compaia in più scaffali della stessa Home
+  buildHeroCarousel();
+  buildNowPlaying();
+  const wrap = document.getElementById("platformShelves");
+  wrap.innerHTML = "";
+  for(const p of PLATFORMS){
+    const block = document.createElement("div");
+    block.innerHTML = `
+      <div class="section-title">
+        ${p.logo ? `<img src="${p.logo}" alt="" class="platform-logo" style="width:22px;height:22px;margin-right:8px;">` : `<span class="platform-icon" style="background:${p.color}"></span>`}
+        <h2>${p.name}</h2>
+        <span class="eyebrow">${t("home.topRated")}</span>
+        <div class="rule"></div>
+      </div>
+      <div class="shelf-row" id="shelf-${p.id}"><div class="loader"><div class="spin"></div>Caricamento…</div></div>
+    `;
+    wrap.appendChild(block);
+    loadPlatformShelf(p.id);
+  }
+  buildWeeklyTrending();
+}
+
+async function buildHeroCarousel(){
+  const el = document.getElementById("heroCarousel");
+  try{
+    const slides = [];
+    for(const p of PLATFORMS){
+      const [m, t] = await Promise.all([
+        tmdb("/discover/movie", { watch_region:REGION, with_watch_providers:p.id, sort_by:"vote_average.desc", "vote_count.gte":150, page:1 }),
+        tmdb("/discover/tv", { watch_region:REGION, with_watch_providers:p.id, sort_by:"vote_average.desc", "vote_count.gte":150, page:1 }),
+      ]);
+      const candidates = [
+        ...(m.results||[]).map(x=>({...x, media_type:"movie"})),
+        ...(t.results||[]).map(x=>({...x, media_type:"tv"})),
+      ].filter(x=>x.backdrop_path).sort((a,b)=>(b.vote_average||0)-(a.vote_average||0));
+      if(candidates[0]) slides.push({ item:candidates[0], platform:p });
+    }
+
+    if(!slides.length){
+      el.innerHTML = `<div class="empty">Impossibile caricare la home in questo momento.</div>`;
+      return;
+    }
+
+    el.innerHTML = `
+      ${slides.map((s,i)=>{
+        const title = s.item.title || s.item.name;
+        const year = (s.item.release_date || s.item.first_air_date || "").slice(0,4);
+        return `<div class="hero-slide ${i===0?'active':''}" style="background-image:url('https://image.tmdb.org/t/p/w1280${s.item.backdrop_path}')" data-idx="${i}" tabindex="0" role="button">
+          <div class="hero-content">
+            <span class="hero-platform-badge" style="color:${s.platform.color}">${s.platform.name}</span>
+            <h2>${title}</h2>
+            <div class="hero-meta"><span>★ ${s.item.vote_average?s.item.vote_average.toFixed(1):"—"}</span><span>${year||"—"}</span></div>
+            <button class="btn primary hero-info-btn" type="button">ℹ️ Info</button>
+          </div>
+        </div>`;
+      }).join("")}
+      <div class="hero-dots">${slides.map((_,i)=>`<span class="hero-dot ${i===0?'active':''}"></span>`).join("")}</div>
+    `;
+
+    el.querySelectorAll(".hero-slide").forEach((slideEl, i)=>{
+      const s = slides[i];
+      slideEl.addEventListener("click", ()=> openDetail(s.item.id, s.item.media_type));
+      slideEl.addEventListener("keydown", (e)=>{
+        if(e.key==="Enter" || e.key===" "){ e.preventDefault(); openDetail(s.item.id, s.item.media_type); }
+      });
+    });
+
+    if(el._heroTimer) clearInterval(el._heroTimer);
+    let idx = 0;
+    el._heroTimer = setInterval(()=>{
+      const allSlides = el.querySelectorAll(".hero-slide");
+      const allDots = el.querySelectorAll(".hero-dot");
+      if(!allSlides.length) return;
+      allSlides[idx].classList.remove("active");
+      allDots[idx].classList.remove("active");
+      idx = (idx+1) % allSlides.length;
+      allSlides[idx].classList.add("active");
+      allDots[idx].classList.add("active");
+    }, 2500);
+  }catch(e){
+    el.innerHTML = `<div class="empty">Impossibile caricare la home in questo momento.</div>`;
+  }
+}
+
+async function buildNowPlaying(){
+  const el = document.getElementById("nowPlayingShelf");
+  el.innerHTML = `<div class="loader"><div class="spin"></div>Caricamento…</div>`;
+  try{
+    const data = await tmdb("/movie/now_playing", { region:REGION, page:1 });
+    const list = (data.results||[]).filter(x=>x.poster_path).slice(0,15);
+    el.innerHTML = "";
+    if(!list.length){ el.innerHTML = `<div class="empty">Nessun film al cinema al momento.</div>`; return; }
+    list.forEach(item=> el.appendChild(buildCard(item, "movie")));
+  }catch(e){
+    el.innerHTML = `<div class="empty">Impossibile caricare i film al cinema.</div>`;
+  }
+}
+
+async function buildWeeklyTrending(){
+  const el = document.getElementById("weeklyTrending");
+  el.innerHTML = `<div class="loader"><div class="spin"></div>Caricamento…</div>`;
+  try{
+    const data = await tmdb("/trending/all/week");
+    const list = (data.results||[]).filter(x=> x.poster_path && (x.media_type==="movie"||x.media_type==="tv")).slice(0,5);
+    el.innerHTML = "";
+    if(!list.length){ el.innerHTML = `<div class="empty">Nessun titolo di tendenza al momento.</div>`; return; }
+    list.forEach(item=> el.appendChild(buildCard(item, item.media_type, { badge: "▶ Trailer" })));
+  }catch(e){
+    el.innerHTML = `<div class="empty">Impossibile caricare i titoli di tendenza.</div>`;
+  }
+}
+
+async function loadPlatformShelf(providerId){
+  const el = document.getElementById("shelf-"+providerId);
+  try{
+    const today = new Date();
+    const pastDate = new Date(today); pastDate.setDate(pastDate.getDate() - 150); // ultimi ~5 mesi
+    const fmt = d => d.toISOString().slice(0,10);
+    const dateTo = fmt(today), dateFrom = fmt(pastDate);
+
+    const [movies1, movies2, tv1, tv2] = await Promise.all([
+      tmdb("/discover/movie", { watch_region:REGION, with_watch_providers:providerId, sort_by:"primary_release_date.desc",
+        "primary_release_date.gte":dateFrom, "primary_release_date.lte":dateTo, "vote_count.gte":3, page:1 }),
+      tmdb("/discover/movie", { watch_region:REGION, with_watch_providers:providerId, sort_by:"primary_release_date.desc",
+        "primary_release_date.gte":dateFrom, "primary_release_date.lte":dateTo, "vote_count.gte":3, page:2 }),
+      tmdb("/discover/tv", { watch_region:REGION, with_watch_providers:providerId, sort_by:"first_air_date.desc",
+        "first_air_date.gte":dateFrom, "first_air_date.lte":dateTo, "vote_count.gte":3, page:1 }),
+      tmdb("/discover/tv", { watch_region:REGION, with_watch_providers:providerId, sort_by:"first_air_date.desc",
+        "first_air_date.gte":dateFrom, "first_air_date.lte":dateTo, "vote_count.gte":3, page:2 }),
+    ]);
+    const pool = [
+      ...(movies1.results||[]).map(x=>({...x, media_type:"movie", _date:x.release_date})),
+      ...(movies2.results||[]).map(x=>({...x, media_type:"movie", _date:x.release_date})),
+      ...(tv1.results||[]).map(x=>({...x, media_type:"tv", _date:x.first_air_date})),
+      ...(tv2.results||[]).map(x=>({...x, media_type:"tv", _date:x.first_air_date})),
+    ].sort((a,b)=>(b._date||"").localeCompare(a._date||""));
+
+    // preferisce titoli non ancora mostrati in altri scaffali della stessa Home;
+    // se non bastano, completa comunque coi più recenti già visti altrove
+    const fresh = pool.filter(x=>!usedHomeShelfIds.has(`${x.media_type}-${x.id}`));
+    const combined = (fresh.length>=10 ? fresh : [...fresh, ...pool.filter(x=>usedHomeShelfIds.has(`${x.media_type}-${x.id}`))]).slice(0,10);
+    combined.forEach(x=> usedHomeShelfIds.add(`${x.media_type}-${x.id}`));
+
+    el.innerHTML = "";
+    if(!combined.length){ el.innerHTML = `<div class="empty">Nessun titolo trovato per questa piattaforma.</div>`; return; }
+    combined.forEach(item=> el.appendChild(buildCard(item, item.media_type)));
+  }catch(e){
+    console.error("Errore caricamento piattaforma", providerId, e);
+    el.innerHTML = `<div class="empty">Impossibile caricare i titoli in questo momento.<br><span style="font-size:11px;opacity:.7">${(e&&e.message)||'errore di rete'} — apri la Console del browser (F12) per i dettagli, e assicurati di aver aperto il file scaricato nel browser e non nell'anteprima di Claude.</span></div>`;
+  }
+}
+
+/* ================= POPOLARI ================= */
+let currentPopTab = "all";
+document.querySelectorAll("#popSubtabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#popSubtabs button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentPopTab = btn.dataset.pop;
+    runPopular();
+  });
+});
+
+document.getElementById("pop-rating").addEventListener("input", e=>{
+  document.getElementById("pop-rating-val").textContent = e.target.value;
+});
+
+async function runPopular() {
+  const resultsEl = document.getElementById("popularResults");
+  resultsEl.innerHTML = `<div class="loader"><div class="spin"></div>Mescolando il catalogo...</div>`;
+  const sort = document.getElementById("pop-sort").value;
+  const yearFrom = document.getElementById("pop-year-from").value;
+  const yearTo = document.getElementById("pop-year-to").value;
+  const hasRange = !!(yearFrom || yearTo);
+  const rating = document.getElementById("pop-rating").value;
+
+  try {
+    let combined = [];
+    const tmdbSort = sort === "random" ? "popularity.desc" : sort;
+    const baseParams = { watch_region: REGION, sort_by: tmdbSort, "vote_count.gte": 150 };
+    if (rating && Number(rating) > 0) baseParams["vote_average.gte"] = rating;
+
+    const requests = [];
+    const batches = 7;
+
+    for (let i = 0; i < batches; i++) {
+      const page = Math.floor(Math.random() * 10) + 1;
+      let targetYear = "";
+
+      if (!hasRange && sort === "random") {
+        if (Math.random() > 0.3) {
+          targetYear = Math.floor(Math.random() * (2024 - 1980 + 1)) + 1980;
+        }
+      }
+
+      if (currentPopTab === "all" || currentPopTab === "movie") {
+        const mParams = {...baseParams, page};
+        if (hasRange){
+          if(yearFrom) mParams["primary_release_date.gte"] = `${yearFrom}-01-01`;
+          if(yearTo) mParams["primary_release_date.lte"] = `${yearTo}-12-31`;
+        } else if (targetYear) mParams.primary_release_year = targetYear;
+        requests.push(tmdb("/discover/movie", mParams).then(r => (r.results||[]).map(x=>({...x, media_type:"movie"}))).catch(()=>[]));
+      }
+      if (currentPopTab === "all" || currentPopTab === "tv") {
+        const tParams = {...baseParams, page};
+        if (hasRange){
+          if(yearFrom) tParams["first_air_date.gte"] = `${yearFrom}-01-01`;
+          if(yearTo) tParams["first_air_date.lte"] = `${yearTo}-12-31`;
+        } else if (targetYear) tParams.first_air_date_year = targetYear;
+        requests.push(tmdb("/discover/tv", tParams).then(r => (r.results||[]).map(x=>({...x, media_type:"tv"}))).catch(()=>[]));
+      }
+    }
+
+    const resultsArray = await Promise.all(requests);
+    combined = resultsArray.flat();
+
+    const seen = new Set();
+    combined = combined.filter(x => {
+      const k = x.media_type + "-" + x.id;
+      if (seen.has(k) || !x.poster_path) return false;
+      seen.add(k); return true;
+    });
+
+    for(let i = combined.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [combined[i], combined[j]] = [combined[j], combined[i]];
+    }
+
+    if (sort === "popularity.desc") combined.sort((a,b) => (b.popularity||0) - (a.popularity||0));
+    else if (sort === "vote_average.desc") combined.sort((a,b) => (b.vote_average||0) - (a.vote_average||0));
+    else if (sort === "primary_release_date.desc") combined.sort((a,b) => ((b.release_date||b.first_air_date||"")).localeCompare(a.release_date||a.first_air_date||""));
+
+    resultsEl.innerHTML = "";
+    if (!combined.length) {
+      resultsEl.innerHTML = `<div class="empty">Nessun titolo trovato con questi filtri.</div>`;
+      return;
+    }
+    combined.forEach(item => resultsEl.appendChild(buildCard(item, item.media_type)));
+  } catch (e) {
+    resultsEl.innerHTML = `<div class="empty">Errore durante il caricamento. Riprova più tardi.</div>`;
+  }
+}
+document.getElementById("runPopular").addEventListener("click", runPopular);
+
+/* ================= SEARCH ================= */
+async function loadGenres(){
+  const [gm, gt] = await Promise.all([ tmdb("/genre/movie/list"), tmdb("/genre/tv/list") ]);
+  gm.genres.forEach(g=>GENRES.movie[g.id]=g.name);
+  gt.genres.forEach(g=>GENRES.tv[g.id]=g.name);
+
+  const sel = document.getElementById("f-genre");
+  const merged = {};
+  [...gm.genres, ...gt.genres].forEach(g=>merged[g.id]=g.name);
+  const opts = Object.entries(merged).sort((a,b)=>a[1].localeCompare(b[1]));
+  opts.forEach(([id,name])=>{
+    const o = document.createElement("option"); o.value=id; o.textContent=name; sel.appendChild(o);
+  });
+  // pseudo genere Anime
+  const anime = document.createElement("option"); anime.value="anime"; anime.textContent="Anime";
+  sel.appendChild(anime);
+}
+
+document.getElementById("f-rating").addEventListener("input", e=>{
+  document.getElementById("f-rating-val").textContent = e.target.value;
+});
+
+async function runSearch(){
+  const query = document.getElementById("f-query").value.trim();
+  const type = document.getElementById("f-type").value;
+  const actor = document.getElementById("f-actor").value.trim();
+  const genre = document.getElementById("f-genre").value;
+  const yearFrom = document.getElementById("f-year-from").value;
+  const yearTo = document.getElementById("f-year-to").value;
+  const rating = document.getElementById("f-rating").value;
+  const sort = document.getElementById("f-sort").value;
+  const resultsEl = document.getElementById("searchResults");
+  resultsEl.innerHTML = `<div class="loader"><div class="spin"></div>Ricerca in corso…</div>`;
+
+  const isAnime = genre === "anime";
+  const inRange = (dateStr)=>{
+    if(!yearFrom && !yearTo) return true;
+    const y = Number((dateStr||"").slice(0,4));
+    if(!y) return false;
+    if(yearFrom && y < Number(yearFrom)) return false;
+    if(yearTo && y > Number(yearTo)) return false;
+    return true;
+  };
+
+  try{
+    let combined = [];
+
+    if(query){
+      /* ---- ricerca testuale per titolo ---- */
+      let movies=[], tv=[];
+      if(type!=="tv") movies = (await tmdb("/search/movie", { query })).results || [];
+      if(type!=="movie") tv = (await tmdb("/search/tv", { query })).results || [];
+
+      combined = [
+        ...movies.map(x=>({...x, media_type:"movie"})),
+        ...tv.map(x=>({...x, media_type:"tv"})),
+      ];
+
+      /* filtri applicati lato client, dato che l'endpoint di ricerca testuale non li supporta nativamente */
+      combined = combined.filter(x=> inRange(x.release_date || x.first_air_date));
+      if(genre){
+        combined = combined.filter(x=>{
+          if(isAnime) return (x.genre_ids||[]).includes(16) && x.original_language==="ja";
+          return (x.genre_ids||[]).includes(Number(genre));
+        });
+      }
+      if(rating && Number(rating)>0){
+        combined = combined.filter(x => (x.vote_average||0) >= Number(rating));
+      }
+      if(actor){
+        const people = await tmdb("/search/person", { query: actor });
+        const castId = people.results && people.results.length ? people.results[0].id : null;
+        if(castId){
+          const checks = await Promise.all(combined.map(async x=>{
+            try{
+              const cr = await tmdb(`/${x.media_type}/${x.id}/credits`);
+              return (cr.cast||[]).some(c=>c.id===castId) ? x : null;
+            }catch(e){ return null; }
+          }));
+          combined = checks.filter(Boolean);
+        } else {
+          combined = [];
+        }
+      }
+      if(sort==="vote_average.desc") combined.sort((a,b)=>(b.vote_average||0)-(a.vote_average||0));
+      else if(sort==="primary_release_date.desc") combined.sort((a,b)=>((b.release_date||b.first_air_date||"")).localeCompare(a.release_date||a.first_air_date||""));
+
+    } else {
+      /* ---- ricerca a filtri (discover) ---- */
+      let castId = null;
+      if(actor){
+        const people = await tmdb("/search/person", { query: actor });
+        if(people.results && people.results.length) castId = people.results[0].id;
+      }
+      const params = (mediaType)=>{
+        const p = { sort_by: sort, "vote_count.gte": 20 };
+        if(castId) p.with_cast = castId;
+        if(genre && !isAnime) p.with_genres = genre;
+        if(isAnime){ p.with_genres = 16; p.with_original_language = "ja"; }
+        if(rating && Number(rating)>0) p["vote_average.gte"] = rating;
+        const dateKey = mediaType==="movie" ? "primary_release_date" : "first_air_date";
+        if(yearFrom) p[dateKey+".gte"] = `${yearFrom}-01-01`;
+        if(yearTo) p[dateKey+".lte"] = `${yearTo}-12-31`;
+        return p;
+      };
+      let movies=[], tv=[];
+      if(type!=="tv") movies = (await tmdb("/discover/movie", params("movie"))).results || [];
+      if(type!=="movie") tv = (await tmdb("/discover/tv", params("tv"))).results || [];
+      combined = [
+        ...movies.map(x=>({...x, media_type:"movie"})),
+        ...tv.map(x=>({...x, media_type:"tv"})),
+      ];
+    }
+
+    resultsEl.innerHTML = "";
+    if(!combined.length){
+      resultsEl.innerHTML = `<div class="empty"><b>Nessun risultato.</b><br>Prova ad allargare i filtri o a controllare il titolo digitato.</div>`;
+      return;
+    }
+    const grid = document.createElement("div");
+    grid.className = "results-grid";
+    combined.forEach(item=> grid.appendChild(buildCard(item, item.media_type)));
+    resultsEl.appendChild(grid);
+  }catch(e){
+    resultsEl.innerHTML = `<div class="empty">Errore durante la ricerca. Riprova.</div>`;
+  }
+}
+
+document.getElementById("runSearch").addEventListener("click", runSearch);
+document.getElementById("f-query").addEventListener("keydown", e=>{ if(e.key==="Enter") runSearch(); });
+document.getElementById("clearFilters").addEventListener("click", ()=>{
+  document.getElementById("f-query").value="";
+  document.getElementById("f-actor").value="";
+  document.getElementById("f-genre").value="";
+  document.getElementById("f-year-from").value="";
+  document.getElementById("f-year-to").value="";
+  document.getElementById("f-rating").value=0;
+  document.getElementById("f-rating-val").textContent="0";
+  document.getElementById("f-type").value="both";
+  document.getElementById("searchResults").innerHTML="";
+});
+
+/* ================= FAVORITES (libreria) ================= */
+let favTab = "all";
+let favSort = "alpha";
+
+function buildFavRow(item, mediaType){
+  const row = document.createElement("div");
+  row.className = "fav-row";
+  row.tabIndex = 0;
+  row.setAttribute("role","button");
+  if(isWatched(mediaType, item.id)) row.classList.add("is-watched");
+  const title = item.title || "Senza titolo";
+  const year = (item.year || "").toString();
+  const rating = item.vote_average ? item.vote_average.toFixed(1) : "—";
+  const poster = posterUrl(item.poster_path);
+  row.innerHTML = `
+    ${poster ? `<img loading="lazy" src="${poster}" alt="${title}">` : `<div class="noimg-mini">${title}</div>`}
+    <div class="fav-row-info">
+      <div class="fav-row-title">${title}</div>
+      <div class="fav-row-sub">
+        <span class="type-tag">${mediaType==="movie"?"🎬 Film":"📺 Serie"}</span>
+        <span>${year||"—"}</span>
+        <span>★ ${rating}</span>
+      </div>
+    </div>
+    <div class="fav-row-actions">
+      <span class="fav-watched-dot"></span>
+      <button class="fav-remove" type="button" title="Rimuovi dai preferiti">✕</button>
+    </div>
+  `;
+  row.querySelector(".fav-remove").addEventListener("click", (e)=>{
+    e.stopPropagation();
+    toggleFavorite(item, mediaType);
+  });
+  row.addEventListener("click", ()=> openDetail(item.id, mediaType));
+  row.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter" || e.key===" "){
+      e.preventDefault();
+      row.click();
+    }
+  });
+  return row;
+}
+
+function renderFavorites(){
+  const grid = document.getElementById("favGrid");
+  grid.innerHTML = "";
+
+  let list = [];
+  if(favTab==="all"){
+    list = [
+      ...FAVORITES.movie.map(x=>({...x, media_type:"movie", year:(x.release_date||"").slice(0,4) || (x._year||"")})),
+      ...FAVORITES.tv.map(x=>({...x, media_type:"tv", year:(x.first_air_date||"").slice(0,4) || (x._year||"")})),
+    ];
+  } else {
+    list = FAVORITES[favTab].map(x=>({...x, media_type:favTab, year:(x.release_date||x.first_air_date||"").slice(0,4) || (x._year||"")}));
+  }
+
+  if(!list.length){
+    const label = favTab==="all" ? "" : (favTab==='movie' ? t("empty.favMovies") : t("empty.favTv"));
+    grid.innerHTML = `<div class="empty"><b>${t("empty.favorites").replace("FILTER", label)}</b><br>${t("empty.favoritesHint")}</div>`;
+    return;
+  }
+
+  if(favSort==="alpha") list.sort((a,b)=> (a.title||"").localeCompare(b.title||""));
+  else if(favSort==="year") list.sort((a,b)=> (b.year||"0") - (a.year||"0"));
+  else if(favSort==="rating") list.sort((a,b)=> (b.vote_average||0) - (a.vote_average||0));
+
+  list.forEach(item=> grid.appendChild(buildFavRow(item, item.media_type)));
+}
+document.getElementById("fav-sort").addEventListener("change", (e)=>{
+  favSort = e.target.value;
+  renderFavorites();
+});
+document.querySelectorAll(".subtabs [data-fav]").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".subtabs [data-fav]").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    favTab = btn.dataset.fav;
+    renderFavorites();
+  });
+});
+
+/* ================= DETAIL MODAL ================= */
+const detailOverlay = document.getElementById("detailOverlay");
+const detailModal = document.getElementById("detailModal");
+
+async function openDetail(id, mediaType){
+  detailOverlay.classList.add("open");
+  detailModal.innerHTML = `<div class="loader" style="padding:40px;justify-content:center"><div class="spin"></div>Caricamento…</div>`;
+  try{
+    const [details, credits, videos, recommended, watchProv, reviews, keywordsRes, externalIds] = await Promise.all([
+      tmdb(`/${mediaType}/${id}`),
+      tmdb(`/${mediaType}/${id}/credits`),
+      tmdb(`/${mediaType}/${id}/videos`).catch(()=>({results:[]})),
+      tmdb(`/${mediaType}/${id}/recommendations`).catch(()=>({results:[]})),
+      tmdb(`/${mediaType}/${id}/watch/providers`).catch(()=>({results:{}})),
+      getReviewsFor(mediaType, id),
+      mediaType==="movie" ? tmdb(`/movie/${id}/keywords`).catch(()=>({keywords:[]})) : Promise.resolve({keywords:[]}),
+      mediaType==="tv" ? tmdb(`/tv/${id}/external_ids`).catch(()=>({imdb_id:null})) : Promise.resolve(null)
+    ]);
+    const imdbId = mediaType==="movie" ? details.imdb_id : (externalIds && externalIds.imdb_id);
+    const externalRatings = await getExternalRatings(imdbId);
+    const myReview = reviews.find(r=>r.uid===CURRENT_PROFILE) || null;
+    const regionProviders = (watchProv.results && watchProv.results[REGION]) || null;
+    const trailer = (videos.results||[]).find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"));
+    const related = (recommended.results||[]).filter(r=>r.poster_path).slice(0,5);
+
+    let collectionData = null;
+    if(mediaType==="movie" && details.belongs_to_collection){
+      try{
+        collectionData = await tmdb(`/collection/${details.belongs_to_collection.id}`);
+      }catch(e){ collectionData = null; }
+    }
+    const collectionParts = collectionData
+      ? (collectionData.parts||[]).filter(p=>p.id!==id && p.poster_path)
+          .sort((a,b)=>(a.release_date||"9999").localeCompare(b.release_date||"9999"))
+      : [];
+
+    const universeKeyword = (keywordsRes.keywords||[]).find(k=> /universe/i.test(k.name));
+    let universeParts = [];
+    if(universeKeyword){
+      try{
+        const universeRes = await tmdb("/discover/movie", { with_keywords: universeKeyword.id, sort_by:"primary_release_date.asc", "vote_count.gte":10 });
+        universeParts = (universeRes.results||[]).filter(p=>p.id!==id && p.poster_path);
+      }catch(e){ universeParts = []; }
+    }
+    const title = details.title || details.name;
+    const date = (details.release_date || details.first_air_date || "").slice(0,4);
+    const poster = posterUrl(details.poster_path);
+    const genres = (details.genres||[]).map(g=>g.name);
+    const director = (credits.crew||[]).find(c=>c.job==="Director");
+    const cast = (credits.cast||[]).slice(0,6);
+    const fav = isFav(mediaType, id);
+    const watched = isWatched(mediaType, id);
+    const userRating = (RATINGS[mediaType] && RATINGS[mediaType][id]) || null;
+    const runtimeMin = mediaType==="movie" ? details.runtime : (details.episode_run_time && details.episode_run_time[0]);
+    let runtimeText = "";
+    if(runtimeMin){
+      const h = Math.floor(runtimeMin/60), m = runtimeMin%60;
+      const hm = h ? `${h}h ${m?m+"m":""}`.trim() : `${m}m`;
+      runtimeText = mediaType==="movie" ? hm : `${hm}${currentLang==="en"?"/ep":"/ep"}`;
+    }
+
+    let seasonsHtml = "";
+    if(mediaType==="tv" && details.seasons){
+      const list = details.seasons.filter(s=>s.season_number>0);
+      seasonsHtml = `
+        <div class="seasons">
+          <h4>${t("detail.seasons")}</h4>
+          ${list.map(s=>{
+            const flagged = (WATCHED_SEASONS[id]||[]).includes(s.season_number);
+            return `<div class="season-block">
+              <div class="season-row" data-season="${s.season_number}">
+                <button class="season-expand" type="button" data-season-toggle="${s.season_number}">▸</button>
+                <span class="s-name" style="flex:1;">${s.name} · ${s.episode_count} ${t("detail.episodes")}</span>
+                <span class="season-check ${flagged?'checked':''}">${flagged?'✓':''}</span>
+              </div>
+              <div class="episodes-list" id="episodes-${s.season_number}" hidden></div>
+            </div>`;
+          }).join("")}
+        </div>`;
+    }
+
+    detailModal.innerHTML = `
+      <div class="close-bar"><button class="modal-close" id="detailClose" type="button">✕</button></div>
+      <div class="modal-hero" style="padding-top:6px;">
+        ${poster?`<img src="${poster}" alt="${title}">`:`<div class="noimg" style="width:160px;border-radius:10px;">${title}</div>`}
+        <div class="modal-info">
+          <h3>${title} ${date?`<span style="color:var(--muted);font-size:20px;">(${date})</span>`:""}</h3>
+          <div class="tagrow">
+            ${genres.map(g=>`<span class="tagpill">${g}</span>`).join("")}
+            ${runtimeText ? `<span class="tagpill">⏱ ${runtimeText}</span>` : ""}
+            <span class="tagpill">★ ${details.vote_average?details.vote_average.toFixed(1):"—"}</span>
+          </div>
+          ${externalRatings ? `<div class="tagrow" style="margin-top:6px;">
+            ${externalRatings.imdb ? `<span class="tagpill">IMDb ${externalRatings.imdb}</span>` : ""}
+            ${externalRatings.rt ? `<span class="tagpill">🍅 ${externalRatings.rt}</span>` : ""}
+            ${externalRatings.metacritic ? `<span class="tagpill">Ⓜ️ ${externalRatings.metacritic}</span>` : ""}
+          </div>` : ""}
+          <p class="overview">${details.overview || (currentLang==="en"?"No overview available.":"Nessuna trama disponibile.")}</p>
+          ${director?`<p class="cast"><b style="color:var(--muted)">${t("detail.director")}</b> <button class="person-link" data-pid="${director.id}" data-pname="${director.name.replace(/"/g,'&quot;')}" data-role="crew" type="button">${director.name}</button></p>`:""}
+          ${cast.length?`<p class="cast"><b style="color:var(--muted)">${t("detail.cast")}</b> ${cast.map(c=>`<button class="person-link" data-pid="${c.id}" data-pname="${c.name.replace(/"/g,'&quot;')}" data-role="cast" type="button">${c.name}</button>`).join(", ")}</p>`:""}
+          <div class="modal-actions">
+            <button class="btn ${fav?'primary':''}" id="detailFav">${fav?t("detail.inFav"):t("detail.addFav")}</button>
+            <button class="btn ${watched?'primary':''}" id="detailWatched">${watched?t("detail.watched"):t("detail.markWatched")}</button>
+            <button class="btn" id="detailShare" type="button">${t("detail.share")}</button>
+
+            ${trailer ? `<a class="btn" href="https://www.youtube.com/watch?v=${trailer.key}" target="_blank" rel="noopener">${t("detail.trailer")}</a>` : ""}
+          </div>
+          <div class="user-rating-row" id="reviewBlock" ${watched?'':'hidden'}>
+            <span class="urr-label">${t("detail.yourRating")}</span>
+            <div class="rating-pills" id="userRatingPills"></div>
+            <div class="review-box">
+              <span class="urr-label" style="margin-top:12px;">${t("review.title")}</span>
+              <textarea id="reviewText" maxlength="500" placeholder="${t("review.placeholder")}">${(myReview||{}).text||""}</textarea>
+              <div class="review-box-foot">
+                <span class="review-charcount" id="reviewCharCount">0/500</span>
+                <button class="btn primary" id="reviewSaveBtn" type="button">${t("review.publish")}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      ${regionProviders && (regionProviders.flatrate||regionProviders.rent||regionProviders.buy) ? `
+        <div class="watch-providers">
+          <h4>${t("detail.watchOn")}</h4>
+          ${regionProviders.flatrate ? `
+            <a href="${regionProviders.link}" target="_blank" rel="noopener" class="providers-row">
+              ${regionProviders.flatrate.map(p=>`<img src="${IMG}${p.logo_path}" alt="${p.provider_name}" title="${p.provider_name}">`).join("")}
+            </a>
+          ` : `<a href="${regionProviders.link}" target="_blank" rel="noopener" class="providers-note">${t("detail.rentBuy")}</a>`}
+        </div>
+      ` : ""}
+      <div class="seasons">
+        <h4>${t("review.othersTitle")}</h4>
+        <div class="review-list" id="reviewsList"></div>
+      </div>
+      ${seasonsHtml}
+      ${collectionParts.length ? `<div class="seasons"><h4>📚 ${collectionData.name || t("detail.collection")}</h4><div class="shelf-row" id="collectionShelf"></div></div>` : ""}
+      ${universeParts.length ? `<div class="seasons"><h4>🌐 ${universeKeyword.name.charAt(0).toUpperCase()+universeKeyword.name.slice(1)}</h4><div class="shelf-row" id="universeShelf"></div></div>` : ""}
+      ${related.length ? `<div class="seasons"><h4>${t("detail.related")}</h4><div class="shelf-row" id="relatedShelf"></div></div>` : ""}
+    `;
+
+    renderUserRatingPills(mediaType, id);
+    renderReviewsList(reviews, mediaType, id);
+
+    const reviewTextEl = document.getElementById("reviewText");
+    const charCountEl = document.getElementById("reviewCharCount");
+    const updateCharCount = ()=>{ charCountEl.textContent = `${reviewTextEl.value.length}/500`; };
+    updateCharCount();
+    reviewTextEl.addEventListener("input", updateCharCount);
+    document.getElementById("reviewSaveBtn").addEventListener("click", async ()=>{
+      const currentRating = (RATINGS[mediaType] && RATINGS[mediaType][id]) || null;
+      await saveMyReview(mediaType, id, currentRating, reviewTextEl.value.trim());
+      const freshReviews = await getReviewsFor(mediaType, id);
+      renderReviewsList(freshReviews, mediaType, id);
+    });
+
+    if(collectionParts.length){
+      const collShelf = document.getElementById("collectionShelf");
+      collectionParts.forEach(p=> collShelf.appendChild(buildCard({...p, media_type:"movie"}, "movie")));
+    }
+
+    if(universeParts.length){
+      const univShelf = document.getElementById("universeShelf");
+      universeParts.forEach(p=> univShelf.appendChild(buildCard({...p, media_type:"movie"}, "movie")));
+    }
+
+    if(related.length){
+      const shelf = document.getElementById("relatedShelf");
+      related.forEach(r=> shelf.appendChild(buildCard(r, mediaType)));
+    }
+
+    document.getElementById("detailClose").addEventListener("click", closeDetail);
+    detailModal.querySelectorAll(".person-link").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const pid = btn.dataset.pid, pname = btn.dataset.pname, asCrew = btn.dataset.role==="crew";
+        returnOverlayId = null; // qui si passa alla scheda Cerca, niente overlay da riaprire dopo
+        closeDetail();
+        openPersonWorks(pid, pname, asCrew);
+      });
+    });
+    document.getElementById("detailFav").addEventListener("click", ()=>{
+      toggleFavorite({
+        id, title, poster_path:details.poster_path, vote_average:details.vote_average,
+        genre_ids:(details.genres||[]).map(g=>g.id), media_type:mediaType
+      }, mediaType);
+      openDetail(id, mediaType);
+    });
+    document.getElementById("detailWatched").addEventListener("click", ()=>{
+      toggleWatched(mediaType, id);
+      openDetail(id, mediaType);
+    });
+    document.getElementById("detailShare").addEventListener("click", async ()=>{
+      const shareUrl = `${location.origin}${location.pathname}?open=${mediaType}-${id}`;
+      const shareText = currentLang==="en" ? `Check out "${title}" on CineMood` : `Guarda "${title}" su CineMood`;
+      if(navigator.share){
+        try{ await navigator.share({ title, text: shareText, url: shareUrl }); }
+        catch(e){ /* condivisione annullata dall'utente, nessun errore da mostrare */ }
+      } else {
+        window.open(`https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl)}`, "_blank");
+      }
+    });
+    detailModal.querySelectorAll(".season-row").forEach(row=>{
+      row.addEventListener("click", ()=>{
+        const sNum = Number(row.dataset.season);
+        WATCHED_SEASONS[id] = WATCHED_SEASONS[id] || [];
+        const idx = WATCHED_SEASONS[id].indexOf(sNum);
+        if(idx>=0) WATCHED_SEASONS[id].splice(idx,1);
+        else WATCHED_SEASONS[id].push(sNum);
+        persistAll();
+        const chk = row.querySelector(".season-check");
+        const nowFlagged = WATCHED_SEASONS[id].includes(sNum);
+        chk.classList.toggle("checked", nowFlagged);
+        chk.textContent = nowFlagged ? "✓" : "";
+      });
+    });
+    detailModal.querySelectorAll("[data-season-toggle]").forEach(btn=>{
+      btn.addEventListener("click", (e)=>{
+        e.stopPropagation();
+        const num = btn.dataset.seasonToggle;
+        const container = document.getElementById("episodes-"+num);
+        const willShow = container.hidden;
+        container.hidden = !willShow;
+        btn.textContent = willShow ? "▾" : "▸";
+        if(willShow && !container.dataset.loaded){
+          container.dataset.loaded = "1";
+          loadEpisodes(id, num, container);
+        }
+      });
+    });
+  }catch(e){
+    detailModal.innerHTML = `<div style="padding:30px"><button class="modal-close" id="detailClose">✕</button><div class="empty">Impossibile caricare i dettagli.</div></div>`;
+    document.getElementById("detailClose").addEventListener("click", closeDetail);
+  }
+}
+function closeDetail(){
+  detailOverlay.classList.remove("open");
+  if(returnOverlayId){
+    const id = returnOverlayId;
+    returnOverlayId = null;
+    document.getElementById(id).classList.add("open");
+  }
+}
+detailOverlay.addEventListener("click", e=>{ if(e.target===detailOverlay) closeDetail(); });
+
+async function loadEpisodes(tvId, seasonNum, container){
+  container.innerHTML = `<div class="loader" style="padding:10px 0;"><div class="spin"></div>Carico episodi…</div>`;
+  try{
+    const data = await tmdb(`/tv/${tvId}/season/${seasonNum}`);
+    const key = tvId+"-"+seasonNum;
+    const epWatched = WATCHED_EPISODES[key] || [];
+    container.innerHTML = (data.episodes||[]).map(ep=>{
+      const w = epWatched.includes(ep.episode_number);
+      const still = ep.still_path ? IMG+ep.still_path : null;
+      return `<div class="episode-row">
+        ${still?`<img src="${still}" alt="">`:`<div class="ep-noimg"></div>`}
+        <div class="ep-info">
+          <div class="ep-title">${ep.episode_number}. ${ep.name}</div>
+          <p class="ep-overview">${ep.overview || "Nessuna trama disponibile."}</p>
+        </div>
+        <button class="ep-check ${w?'checked':''}" type="button" data-ep-toggle="${ep.episode_number}">${w?'✓':''}</button>
+      </div>`;
+    }).join("") || `<div class="empty" style="padding:10px 0;">Nessun episodio trovato.</div>`;
+
+    container.querySelectorAll("[data-ep-toggle]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const epNum = Number(btn.dataset.epToggle);
+        WATCHED_EPISODES[key] = WATCHED_EPISODES[key] || [];
+        const idx = WATCHED_EPISODES[key].indexOf(epNum);
+        if(idx>=0) WATCHED_EPISODES[key].splice(idx,1); else WATCHED_EPISODES[key].push(epNum);
+        persistAll();
+        const nowChecked = WATCHED_EPISODES[key].includes(epNum);
+        btn.classList.toggle("checked", nowChecked);
+        btn.textContent = nowChecked ? "✓" : "";
+      });
+    });
+  }catch(e){
+    container.innerHTML = `<div class="empty" style="padding:10px 0;">Errore nel caricamento degli episodi.</div>`;
+  }
+}
+
+function renderUserRatingPills(mediaType, id){
+  const wrap = document.getElementById("userRatingPills");
+  if(!wrap) return;
+  const val = (RATINGS[mediaType] && RATINGS[mediaType][id]) || null;
+  wrap.innerHTML = "";
+  for(let i=1;i<=10;i++){
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = "rating-pill" + (val===i ? " active" : "");
+    pill.textContent = i;
+    pill.addEventListener("click", ()=>{
+      RATINGS[mediaType] = RATINGS[mediaType] || {};
+      if(RATINGS[mediaType][id]===i){ delete RATINGS[mediaType][id]; } else { RATINGS[mediaType][id] = i; }
+      persistAll();
+      renderUserRatingPills(mediaType, id);
+    });
+    wrap.appendChild(pill);
+  }
+}
+
+function renderReviewsList(reviewsRaw, mediaType, id){
+  const wrap = document.getElementById("reviewsList");
+  if(!wrap) return;
+  const REPORT_THRESHOLD = 3;
+  const reviews = (reviewsRaw||[]).filter(r=> (r.text || r.rating) && (r.reportCount||0) < REPORT_THRESHOLD);
+  if(!reviews.length){
+    wrap.innerHTML = `<div class="empty" style="padding:14px;">${t("review.none")}</div>`;
+    return;
+  }
+  wrap.innerHTML = reviews.map(r=>`
+    <div class="review-item">
+      <div class="review-item-head">
+        <span class="review-author">${r.author}${r.uid===CURRENT_PROFILE?' (' + (currentLang==="en"?"you":"tu") + ')':''}</span>
+        <span class="review-item-rating">${r.rating?`★ ${r.rating}/10`:''}</span>
+      </div>
+      ${r.text?`<p class="review-text">${r.text.replace(/</g,'&lt;')}</p>`:''}
+      <div class="review-item-head" style="margin-top:6px;">
+        <span class="review-date">${r.date||''}</span>
+        ${r.uid!==CURRENT_PROFILE ? `<button class="review-report-btn" type="button" data-report-uid="${r.uid}">${t("review.report")}</button>` : ''}
+      </div>
+    </div>
+  `).join("");
+
+  wrap.querySelectorAll("[data-report-uid]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      if(!confirm(t("review.reportConfirm"))) return;
+      await reportReview(mediaType, id, btn.dataset.reportUid);
+      const fresh = await getReviewsFor(mediaType, id);
+      renderReviewsList(fresh, mediaType, id);
+    });
+  });
+}
+
+/* ================= MOOD ================= */
+const moodOverlay = document.getElementById("moodOverlay");
+let returnOverlayId = null;
+let selectedMoodKey = null;
+let selectedMoodKey2 = null;
+
+document.getElementById("openMood").addEventListener("click", ()=>{
+  document.getElementById("moodResults").innerHTML="";
+  moodOverlay.classList.add("open");
+});
+document.getElementById("moodClose").addEventListener("click", ()=> moodOverlay.classList.remove("open"));
+moodOverlay.addEventListener("click", e=>{ if(e.target===moodOverlay) moodOverlay.classList.remove("open"); });
+
+document.getElementById("matchModeToggle").addEventListener("change", (e)=>{
+  const on = e.target.checked;
+  document.getElementById("matchSecondBlock").hidden = !on;
+  document.getElementById("moodGridLabel1").textContent = on ? "Il tuo mood" : "Che mood hai stasera?";
+  document.getElementById("moodSearchBtn").textContent = on ? "Trova il match" : "Cerca";
+  if(!on){ selectedMoodKey2 = null; }
+});
+
+function buildMoodTiles(gridId, onSelect){
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = "";
+  MOODS.forEach(m=>{
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = "mood-tile";
+    tile.innerHTML = `<span class="emoji">${m.emoji}</span><span>${moodLabel(m)}</span>`;
+    tile.addEventListener("click", ()=>{
+      onSelect(m.key);
+      grid.querySelectorAll(".mood-tile").forEach(t=>t.classList.remove("selected"));
+      tile.classList.add("selected");
+    });
+    grid.appendChild(tile);
+  });
+}
+
+function buildMoodGrid(){
+  buildMoodTiles("moodGrid", (key)=>{ selectedMoodKey = key; });
+  buildMoodTiles("moodGrid2", (key)=>{ selectedMoodKey2 = key; });
+  const platSel = document.getElementById("mood-platform");
+  platSel.innerHTML = `<option value="">Tutte</option>`;
+  PLATFORMS.forEach(p=>{
+    const o = document.createElement("option"); o.value=p.id; o.textContent=p.name; platSel.appendChild(o);
+  });
+}
+
+document.getElementById("moodHomeBtn").addEventListener("click", ()=>{
+  moodOverlay.classList.remove("open");
+  document.querySelectorAll(".nav [data-view]").forEach(b=>b.classList.remove("active"));
+  document.querySelector('.nav [data-view="home"]').classList.add("active");
+  document.querySelectorAll(".view").forEach(v=>v.hidden = true);
+  document.getElementById("view-home").hidden = false;
+});
+
+document.getElementById("moodSearchBtn").addEventListener("click", runMoodSearch);
+
+async function runMoodSearch(){
+  const resultsEl = document.getElementById("moodResults");
+  const matchMode = document.getElementById("matchModeToggle").checked;
+
+  if(!selectedMoodKey){
+    resultsEl.innerHTML = `<div class="empty">${t("mood.chooseFirst")}</div>`;
+    return;
+  }
+  if(matchMode && !selectedMoodKey2){
+    resultsEl.innerHTML = `<div class="empty">${t("mood.choosePartner")}</div>`;
+    return;
+  }
+
+  const mood = MOODS.find(m=>m.key===selectedMoodKey);
+  const mood2 = matchMode ? MOODS.find(m=>m.key===selectedMoodKey2) : null;
+  const yearFrom = document.getElementById("mood-year-from").value;
+  const yearTo = document.getElementById("mood-year-to").value;
+  const platform = document.getElementById("mood-platform").value;
+  const sort = document.getElementById("mood-sort").value;
+  resultsEl.innerHTML = `<div class="loader"><div class="spin"></div>${matchMode?'Cerco un match tra i due mood…':'Ricerca in corso…'}</div>`;
+
+  const baseParams = (mediaType, genreExpr)=>{
+    const p = { with_genres: genreExpr, sort_by:"popularity.desc", "vote_count.gte": 15 };
+    if(platform){ p.with_watch_providers = platform; p.watch_region = REGION; }
+    const dateKey = mediaType==="movie" ? "primary_release_date" : "first_air_date";
+    if(yearFrom) p[dateKey+".gte"] = `${yearFrom}-01-01`;
+    if(yearTo) p[dateKey+".lte"] = `${yearTo}-12-31`;
+    return p;
+  };
+
+  async function fetchCombined(genreExpr){
+    const pages = [1,2,3];
+    const [movieResults, tvResults] = await Promise.all([
+      Promise.all(pages.map(pg => tmdb("/discover/movie", {...baseParams("movie", genreExpr), page:pg}))),
+      Promise.all(pages.map(pg => tmdb("/discover/tv", {...baseParams("tv", genreExpr), page:pg}))),
+    ]);
+    let combined = [
+      ...movieResults.flatMap(r=>r.results||[]).map(x=>({...x, media_type:"movie"})),
+      ...tvResults.flatMap(r=>r.results||[]).map(x=>({...x, media_type:"tv"})),
+    ];
+    const seen = new Set();
+    combined = combined.filter(x=>{
+      const k = x.media_type+"-"+x.id;
+      if(seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+    return combined;
+  }
+
+  try{
+    let combined = [];
+    let usedFallback = false;
+
+    if(matchMode){
+      combined = await fetchCombined(`${mood.genre},${mood2.genre}`); // AND: soddisfa entrambi i mood
+      if(!combined.length){
+        usedFallback = true;
+        combined = await fetchCombined(`${mood.genre}|${mood2.genre}`); // OR: compromesso più ampio
+      }
+    } else {
+      combined = await fetchCombined(mood.genre);
+    }
+
+    if(sort==="vote_average.desc") combined.sort((a,b)=>(b.vote_average||0)-(a.vote_average||0));
+    else if(sort==="year.desc") combined.sort((a,b)=>((b.release_date||b.first_air_date||"")).localeCompare(a.release_date||a.first_air_date||""));
+    else if(sort==="year.asc") combined.sort((a,b)=>((a.release_date||a.first_air_date||"")).localeCompare(b.release_date||b.first_air_date||""));
+
+    resultsEl.innerHTML = "";
+    if(!combined.length){
+      resultsEl.innerHTML = `<div class="empty">${t("mood.emptyResult")}</div>`;
+      return;
+    }
+    if(matchMode){
+      const note = document.createElement("p");
+      note.style.cssText = "color:var(--muted);font-size:13px;margin:0 0 14px;";
+      note.textContent = usedFallback
+        ? (currentLang==="en" ? `Few titles combine ${moodLabel(mood)} and ${moodLabel(mood2)} perfectly: here's a wider mix of both.` : `Pochi titoli uniscono perfettamente ${moodLabel(mood)} e ${moodLabel(mood2)}: ecco un mix più ampio tra i due.`)
+        : (currentLang==="en" ? `Titles combining ${moodLabel(mood)} and ${moodLabel(mood2)} — should work for both of you.` : `Titoli che uniscono ${moodLabel(mood)} e ${moodLabel(mood2)} — dovrebbero piacere a entrambi.`);
+      resultsEl.appendChild(note);
+    }
+    const grid = document.createElement("div");
+    grid.className = "results-grid";
+    combined.forEach(item=> grid.appendChild(buildCard(item, item.media_type)));
+    resultsEl.appendChild(grid);
+  }catch(e){
+    resultsEl.innerHTML = `<div class="empty">Errore durante la ricerca. Riprova.</div>`;
+  }
+}
+
+/* ================= RACCOMANDATI ================= */
+const recOverlay = document.getElementById("recOverlay");
+document.getElementById("openRecommended").addEventListener("click", ()=>{
+  recOverlay.classList.add("open");
+  buildRecommendations();
+});
+document.getElementById("recClose").addEventListener("click", ()=> recOverlay.classList.remove("open"));
+recOverlay.addEventListener("click", e=>{ if(e.target===recOverlay) recOverlay.classList.remove("open"); });
+
+function shuffleArray(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+async function buildRecommendations(){
+  const el = document.getElementById("recResults");
+  const movieIds = Object.keys(WATCHED.movie);
+  const tvIds = Object.keys(WATCHED.tv);
+  let seeds = [...movieIds.map(id=>({id,type:"movie"})), ...tvIds.map(id=>({id,type:"tv"}))];
+
+  if(!seeds.length){
+    el.innerHTML = `<div class="empty">Segna qualche film o serie come <b>"visto"</b> per ricevere consigli su misura.</div>`;
+    return;
+  }
+
+  seeds = shuffleArray(seeds).slice(0,15);
+  el.innerHTML = `<div class="loader"><div class="spin"></div>Sto pensando a cosa potrebbe piacerti…</div>`;
+
+  try{
+    const recLists = await Promise.all(seeds.map(async s=>{
+      try{
+        const r = await tmdb(`/${s.type}/${s.id}/recommendations`);
+        return (r.results||[]).map(x=>({...x, media_type:s.type}));
+      }catch(e){ return []; }
+    }));
+
+    const already = new Set([...movieIds.map(id=>"movie-"+id), ...tvIds.map(id=>"tv-"+id)]);
+    const scoreMap = new Map();
+    recLists.flat().forEach(item=>{
+      if(!item.poster_path) return;
+      const key = item.media_type+"-"+item.id;
+      if(already.has(key)) return;
+      if(!scoreMap.has(key)) scoreMap.set(key, {item, score:0});
+      scoreMap.get(key).score += 1 + (item.vote_average||0)/10;
+    });
+
+    const list = [...scoreMap.values()].sort((a,b)=>b.score-a.score).slice(0,50).map(x=>x.item);
+
+    el.innerHTML = "";
+    if(!list.length){
+      el.innerHTML = `<div class="empty">Non ho trovato abbastanza titoli simili: continua a segnare cosa hai visto.</div>`;
+      return;
+    }
+    const grid = document.createElement("div");
+    grid.className = "results-grid";
+    list.forEach(item=> grid.appendChild(buildCard(item, item.media_type)));
+    el.appendChild(grid);
+  }catch(e){
+    el.innerHTML = `<div class="empty">Errore nel calcolo dei consigli. Riprova.</div>`;
+  }
+}
+
+/* ================= NUOVE USCITE ================= */
+const upcomingOverlay = document.getElementById("upcomingOverlay");
+const ITA_MONTHS = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
+const ITA_MONTHS_SHORT = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
+
+document.getElementById("openUpcoming").addEventListener("click", ()=>{
+  document.getElementById("upcomingSubtitle").textContent = `Al cinema e in streaming a ${ITA_MONTHS[new Date().getMonth()]}.`;
+  upcomingOverlay.classList.add("open");
+  buildUpcoming();
+});
+document.getElementById("upcomingClose").addEventListener("click", ()=> upcomingOverlay.classList.remove("open"));
+upcomingOverlay.addEventListener("click", e=>{ if(e.target===upcomingOverlay) upcomingOverlay.classList.remove("open"); });
+
+function formatShortDate(dateStr){
+  if(!dateStr) return "";
+  const d = new Date(dateStr+"T00:00:00");
+  return `${d.getDate()} ${ITA_MONTHS_SHORT[d.getMonth()]}`;
+}
+
+let upcomingCinemaItems = [];
+let upcomingStreamItems = [];
+let upcomingActiveTab = "cinema";
+
+// Lista curata a mano, aggiornata a richiesta ogni mese (TMDB non sa quando un titolo
+// arriva davvero su una piattaforma, solo quando è uscito la primissima volta).
+// Formato data: "5 ago" ecc, già pronto da mostrare, non richiede calcoli.
+const CURATED_STREAMING_MONTH = "Agosto 2026";
+const CURATED_STREAMING = [
+  { title:"Gate 24", type:"tv", date:"2 ago", platform:"Netflix" },
+  { title:"Lioness", type:"tv", date:"2 ago", platform:"Paramount+" },
+  { title:"Futurama", type:"tv", date:"3 ago", platform:"Disney+" },
+  { title:"I Tudor", type:"tv", date:"4 ago", platform:"Netflix" },
+  { title:"Hard Knocks: Training Camp with the Seattle Seahawks", type:"tv", date:"4 ago", platform:"HBO Max" },
+  { title:"1670", type:"tv", date:"5 ago", platform:"Netflix" },
+  { title:"Cent'anni di solitudine", type:"tv", date:"5 ago", platform:"Netflix" },
+  { title:"Star Wars: Visions – The Ninth Jedi", type:"tv", date:"5 ago", platform:"Disney+" },
+  { title:"Sterling Point", type:"tv", date:"5 ago", platform:"Prime Video" },
+  { title:"Ted Lasso", type:"tv", date:"5 ago (ogni settimana)", platform:"Apple TV+" },
+  { title:"Big Chicken: Il complotto del fast food", type:"movie", date:"5 ago", platform:"Netflix" },
+  { title:"Lo scandalo Trustor", type:"movie", date:"5 ago", platform:"Netflix" },
+  { title:"Uno splendido errore", type:"tv", date:"6 ago", platform:"Netflix" },
+  { title:"Tip Toe", type:"tv", date:"6 ago", platform:"HBO Max" },
+  { title:"The Shards", type:"tv", date:"6 ago", platform:"Disney+" },
+  { title:"My Life with the Walter Boys", type:"tv", date:"6 ago", platform:"Netflix" },
+  { title:"Muertos S.R.L.", type:"tv", date:"7 ago", platform:"Netflix" },
+  { title:"The Last House", type:"movie", date:"7 ago", platform:"Netflix" },
+  { title:"The Ribbon Hero", type:"tv", date:"8 ago", platform:"Netflix" },
+  { title:"Mourinho", type:"tv", date:"11 ago", platform:"Netflix" },
+  { title:"Reacher", type:"tv", date:"12 ago", platform:"Prime Video" },
+  { title:"Las Azules", type:"tv", date:"12 ago", platform:"Apple TV+" },
+  { title:"Nando – Tra due mondi", type:"movie", date:"12 ago", platform:"Netflix" },
+  { title:"Tires", type:"tv", date:"13 ago", platform:"Netflix" },
+  { title:"La mia brillante carriera", type:"tv", date:"13 ago", platform:"Netflix" },
+  { title:"Travis Barker: Louder Than Fear", type:"movie", date:"13 ago", platform:"Disney+" },
+  { title:"Moria", type:"tv", date:"14 ago", platform:"Netflix" },
+  { title:"Umthetho", type:"tv", date:"14 ago", platform:"Netflix" },
+  { title:"Camp Rock 3", type:"movie", date:"14 ago", platform:"Disney+" },
+  { title:"Lanterns", type:"tv", date:"17 ago", platform:"HBO Max" },
+  { title:"It's Always Sunny in Philadelphia", type:"tv", date:"17 ago", platform:"Disney+" },
+  { title:"Average Joe", type:"tv", date:"19 ago", platform:"Paramount+" },
+  { title:"Freefall: La resa dei conti per Boeing", type:"movie", date:"19 ago", platform:"Netflix" },
+  { title:"Novak Djokovic: Il lupo d'inverno", type:"movie", date:"20 ago", platform:"Prime Video" },
+  { title:"Outer Banks", type:"tv", date:"20 ago", platform:"Netflix" },
+  { title:"Conan O'Brien Must Go", type:"tv", date:"21 ago", platform:"HBO Max" },
+  { title:"Stillwater", type:"tv", date:"21 ago", platform:"Apple TV+" },
+  { title:"Facing El Chapo", type:"movie", date:"21 ago", platform:"Netflix" },
+  { title:"LEGO Disney Princess: Magical Mayhem", type:"tv", date:"21 ago", platform:"Disney+" },
+  { title:"Untold: The Testimony of Vince Young", type:"movie", date:"25 ago", platform:"Netflix" },
+  { title:"The Last Sunrise", type:"movie", date:"26 ago", platform:"Prime Video" },
+  { title:"Dalliance", type:"tv", date:"27 ago", platform:"Paramount+" },
+  { title:"Adults", type:"tv", date:"27 ago", platform:"Disney+" },
+  { title:"Leanne", type:"tv", date:"27 ago", platform:"Netflix" },
+  { title:"Dark Matter", type:"tv", date:"28 ago", platform:"Apple TV+" },
+  { title:"Mezarlik", type:"tv", date:"28 ago", platform:"Netflix" },
+  { title:"Barreda", type:"tv", date:"28 ago", platform:"Prime Video" },
+  { title:"The Producer", type:"tv", date:"28 ago", platform:"HBO Max" },
+];
+
+async function buildUpcoming(){
+  const container = document.getElementById("upcomingResults");
+  container.innerHTML = `<div class="loader"><div class="spin"></div>Carico le prossime uscite…</div>`;
+
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const pad = n => String(n).padStart(2,"0");
+  const startDate = `${y}-${pad(m+1)}-01`;
+  const lastDay = new Date(y, m+1, 0).getDate();
+  const endDate = `${y}-${pad(m+1)}-${pad(lastDay)}`;
+
+  try{
+    const cinemaReq = tmdb("/discover/movie", { "primary_release_date.gte":startDate, "primary_release_date.lte":endDate, region:REGION, with_release_type:"2|3", sort_by:"popularity.desc" });
+    const cinemaRes = await cinemaReq;
+
+    upcomingCinemaItems = (cinemaRes.results||[]).filter(x=>x.poster_path)
+      .map(x=>({...x, media_type:"movie", _date:x.release_date, _tag:formatShortDate(x.release_date)}))
+      .sort((a,b)=> (a._date||"").localeCompare(b._date||""));
+
+    // lista curata a mano: cerca ogni titolo su TMDB solo per recuperare locandina e id,
+    // data e piattaforma restano quelle scritte a mano (più affidabili di quanto sappia TMDB)
+    const streamResults = await Promise.all(CURATED_STREAMING.map(entry=>
+      tmdb(entry.type==="tv" ? "/search/tv" : "/search/movie", { query: entry.title })
+        .then(r => { const found = (r.results||[])[0]; return found ? { ...found, media_type: entry.type, _entry: entry } : null; })
+        .catch(()=>null)
+    ));
+    upcomingStreamItems = streamResults.filter(x=>x && x.poster_path).map(x=>{
+      const kindLabel = x.media_type==="tv" ? (currentLang==="en"?"Series":"Serie") : (currentLang==="en"?"Movie":"Film");
+      const platformObj = PLATFORMS.find(p=>p.name===x._entry.platform);
+      return { ...x, _tag: `${x._entry.date} · ${kindLabel} · ${platformLogoTag(platformObj)}${x._entry.platform}` };
+    });
+
+    renderUpcomingList();
+  }catch(e){
+    container.innerHTML = `<div class="empty">Errore nel caricamento delle uscite.</div>`;
+  }
+}
+
+let upcomingPlatformFilter = null; // null = tutti
+
+function renderPlatformFilters(){
+  const wrap = document.getElementById("upcomingPlatformFilters");
+  if(upcomingActiveTab !== "stream"){ wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const platformsInList = [...new Set(upcomingStreamItems.map(x=>x._entry.platform))];
+  wrap.innerHTML = "";
+
+  const allBtn = document.createElement("button");
+  allBtn.type = "button";
+  allBtn.className = "platform-filter-btn" + (upcomingPlatformFilter===null ? " active" : "");
+  allBtn.textContent = currentLang==="en" ? "All" : "Tutti";
+  allBtn.addEventListener("click", ()=>{ upcomingPlatformFilter = null; renderUpcomingList(); });
+  wrap.appendChild(allBtn);
+
+  platformsInList.forEach(platformName=>{
+    const platformObj = PLATFORMS.find(p=>p.name===platformName);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "platform-filter-btn" + (upcomingPlatformFilter===platformName ? " active" : "");
+    btn.innerHTML = `${platformLogoTag(platformObj)}${platformName}`;
+    btn.addEventListener("click", ()=>{ upcomingPlatformFilter = platformName; renderUpcomingList(); });
+    wrap.appendChild(btn);
+  });
+}
+
+function renderUpcomingList(){
+  renderPlatformFilters();
+  const container = document.getElementById("upcomingResults");
+  let items = upcomingActiveTab === "cinema" ? upcomingCinemaItems : upcomingStreamItems;
+  if(upcomingActiveTab === "stream" && upcomingPlatformFilter){
+    items = items.filter(x=> x._entry.platform === upcomingPlatformFilter);
+  }
+  container.innerHTML = "";
+  if(!items.length){
+    container.innerHTML = `<div class="empty">${currentLang==="en"?"No releases found for this month.":"Nessuna uscita trovata per questo mese."}</div>`;
+    return;
+  }
+  const grid = document.createElement("div");
+  grid.className = "results-grid";
+  items.forEach(item=>{
+    grid.appendChild(buildCard(item, item.media_type, { badge: item._tag }));
+  });
+  container.appendChild(grid);
+}
+
+document.getElementById("upcTabCinema").addEventListener("click", ()=>{
+  upcomingActiveTab = "cinema";
+  document.getElementById("upcTabCinema").classList.add("active");
+  document.getElementById("upcTabStream").classList.remove("active");
+  renderUpcomingList();
+});
+document.getElementById("upcTabStream").addEventListener("click", ()=>{
+  upcomingActiveTab = "stream";
+  document.getElementById("upcTabStream").classList.add("active");
+  document.getElementById("upcTabCinema").classList.remove("active");
+  renderUpcomingList();
+});
+
+/* ================= UNIVERSI CONDIVISI ================= */
+// Per la maggior parte, l'ordine viene ricostruito in automatico da TMDB (data di uscita).
+// Per Marvel, dove l'ordine cronologico della storia è famoso e diverso da quello di uscita,
+// l'ordine è curato a mano (verificato online), e i titoli vengono cercati singolarmente.
+const UNIVERSES = [
+  {
+    key:"mcu", emoji:"🦸", nameIt:"Marvel Cinematic Universe", nameEn:"Marvel Cinematic Universe",
+    noteIt:"Solo film, in ordine cronologico della storia (non di uscita al cinema).",
+    noteEn:"Movies only, in in-universe chronological order (not release order).",
+    mode:"titles",
+    titles:[
+      "Captain America: The First Avenger","Captain Marvel","Iron Man","Iron Man 2","The Incredible Hulk",
+      "Thor","The Avengers","Thor: The Dark World","Iron Man 3","Guardians of the Galaxy",
+      "Guardians of the Galaxy Vol. 2","Avengers: Age of Ultron","Ant-Man","Captain America: Civil War",
+      "Black Widow","Black Panther","Spider-Man: Homecoming","Doctor Strange","Thor: Ragnarok",
+      "Avengers: Infinity War","Ant-Man and the Wasp","Avengers: Endgame","Spider-Man: Far From Home",
+      "Black Panther: Wakanda Forever","Shang-Chi and the Legend of the Ten Rings","Eternals",
+      "Doctor Strange in the Multiverse of Madness","Thor: Love and Thunder","Ant-Man and the Wasp: Quantumania",
+      "Guardians of the Galaxy Vol. 3","The Marvels","Deadpool & Wolverine","Captain America: Brave New World",
+      "Thunderbolts","Fantastic Four: First Steps",
+    ]
+  },
+  { key:"conjuring", emoji:"👻", nameIt:"The Conjuring Universe", nameEn:"The Conjuring Universe",
+    noteIt:"Ordine cronologico della storia.", noteEn:"In-universe chronological order.",
+    mode:"titles",
+    titles:[
+      "The Nun","Annabelle: Creation","The Nun II","Annabelle","The Conjuring","Annabelle Comes Home",
+      "The Curse of La Llorona","The Conjuring 2","The Conjuring: The Devil Made Me Do It","The Conjuring: Last Rites",
+    ] },
+  { key:"wizarding", emoji:"🪄", nameIt:"Wizarding World", nameEn:"Wizarding World",
+    noteIt:"Harry Potter e Animali Fantastici, ordine di uscita.", noteEn:"Harry Potter and Fantastic Beasts, release order.",
+    mode:"titles",
+    titles:[
+      "Harry Potter and the Philosopher's Stone","Harry Potter and the Chamber of Secrets",
+      "Harry Potter and the Prisoner of Azkaban","Harry Potter and the Goblet of Fire",
+      "Harry Potter and the Order of the Phoenix","Harry Potter and the Half-Blood Prince",
+      "Harry Potter and the Deathly Hallows: Part 1","Harry Potter and the Deathly Hallows: Part 2",
+      "Fantastic Beasts and Where to Find Them","Fantastic Beasts: The Crimes of Grindelwald",
+      "Fantastic Beasts: The Secrets of Dumbledore",
+    ] },
+  { key:"starwars", emoji:"⭐", nameIt:"Star Wars", nameEn:"Star Wars",
+    noteIt:"Solo saga principale e spin-off live action, ordine di uscita.", noteEn:"Main saga and live-action spin-offs, release order.",
+    mode:"titles",
+    titles:[
+      "Star Wars","The Empire Strikes Back","Return of the Jedi","Star Wars: Episode I - The Phantom Menace",
+      "Star Wars: Episode II - Attack of the Clones","Star Wars: Episode III - Revenge of the Sith",
+      "Star Wars: The Force Awakens","Rogue One: A Star Wars Story","Star Wars: The Last Jedi",
+      "Solo: A Star Wars Story","Star Wars: The Rise of Skywalker",
+    ] },
+  { key:"fastfurious", emoji:"🏎️", nameIt:"Fast & Furious", nameEn:"Fast & Furious",
+    noteIt:"Ordine di uscita al cinema.", noteEn:"Theatrical release order.",
+    mode:"titles",
+    titles:[
+      "The Fast and the Furious","2 Fast 2 Furious","The Fast and the Furious: Tokyo Drift","Fast & Furious",
+      "Fast Five","Fast & Furious 6","Furious 7","The Fate of the Furious","Fast & Furious Presents: Hobbs & Shaw",
+      "F9","Fast X",
+    ] },
+  { key:"monsterverse", emoji:"🦖", nameIt:"MonsterVerse (Godzilla/Kong)", nameEn:"MonsterVerse (Godzilla/Kong)",
+    noteIt:"Ordine di uscita al cinema.", noteEn:"Theatrical release order.",
+    mode:"titles",
+    titles:[
+      "Godzilla","Kong: Skull Island","Godzilla: King of the Monsters","Godzilla vs. Kong","Godzilla x Kong: The New Empire",
+    ] },
+  { key:"dceu", emoji:"🦇", nameIt:"DC Extended Universe", nameEn:"DC Extended Universe",
+    noteIt:"2013-2023, ordine di uscita al cinema.", noteEn:"2013-2023, theatrical release order.",
+    mode:"titles",
+    titles:[
+      "Man of Steel","Batman v Superman: Dawn of Justice","Suicide Squad","Wonder Woman","Justice League",
+      "Aquaman","Shazam!","Birds of Prey","Wonder Woman 1984","Zack Snyder's Justice League","The Suicide Squad",
+      "Black Adam","Shazam! Fury of the Gods","The Flash","Blue Beetle","Aquaman and the Lost Kingdom",
+    ] },
+  { key:"jurassic", emoji:"🦕", nameIt:"Jurassic Park / World", nameEn:"Jurassic Park / World",
+    noteIt:"Ordine di uscita al cinema.", noteEn:"Theatrical release order.",
+    mode:"titles",
+    titles:[
+      "Jurassic Park","The Lost World: Jurassic Park","Jurassic Park III","Jurassic World",
+      "Jurassic World: Fallen Kingdom","Jurassic World Dominion","Jurassic World Rebirth",
+    ] },
+  { key:"alien", emoji:"👽", nameIt:"Alien", nameEn:"Alien",
+    noteIt:"Saga completa più i due crossover con Predator, ordine di uscita.", noteEn:"Full saga plus the two Predator crossovers, release order.",
+    mode:"titles",
+    titles:[
+      "Alien","Aliens","Alien 3","Alien: Resurrection","AVP: Alien vs. Predator","Aliens vs Predator: Requiem",
+      "Prometheus","Alien: Covenant","Alien: Romulus",
+    ] },
+  { key:"predator", emoji:"🎯", nameIt:"Predator", nameEn:"Predator",
+    noteIt:"Saga completa più i due crossover con Alien, ordine di uscita.", noteEn:"Full saga plus the two Alien crossovers, release order.",
+    mode:"titles",
+    titles:[
+      "Predator","Predator 2","AVP: Alien vs. Predator","Aliens vs Predator: Requiem",
+      "Predators","The Predator","Prey","Predator: Badlands",
+    ] },
+  { key:"bond", emoji:"🍸", nameIt:"James Bond 007", nameEn:"James Bond 007",
+    noteIt:"Saga Eon Productions completa, ordine di uscita.", noteEn:"Full Eon Productions saga, release order.",
+    mode:"titles",
+    titles:[
+      "Dr. No","From Russia with Love","Goldfinger","Thunderball","You Only Live Twice",
+      "On Her Majesty's Secret Service","Diamonds Are Forever","Live and Let Die","The Man with the Golden Gun",
+      "The Spy Who Loved Me","Moonraker","For Your Eyes Only","Octopussy","A View to a Kill",
+      "The Living Daylights","Licence to Kill","GoldenEye","Tomorrow Never Dies","The World Is Not Enough",
+      "Die Another Day",{t:"Casino Royale",y:2006},"Quantum of Solace","Skyfall","Spectre","No Time to Die",
+    ] },
+  { key:"universalmonsters", emoji:"🧛", nameIt:"Universal Monsters", nameEn:"Universal Monsters",
+    noteIt:"I mostri classici Universal, anni '30-'40, ordine di uscita.", noteEn:"The classic Universal monsters, 1930s-40s, release order.",
+    mode:"titles",
+    titles:[
+      "Dracula","Frankenstein","The Mummy","The Invisible Man","Bride of Frankenstein","Son of Frankenstein",
+      "The Wolf Man","Frankenstein Meets the Wolf Man","House of Frankenstein","House of Dracula",
+      "Abbott and Costello Meet Frankenstein","Creature from the Black Lagoon",
+    ] },
+  { key:"xmen", emoji:"🧬", nameIt:"X-Men", nameEn:"X-Men",
+    noteIt:"Saga Fox 2000-2020, ordine di uscita al cinema.", noteEn:"Fox saga 2000-2020, theatrical release order.",
+    mode:"titles",
+    titles:[
+      "X-Men","X2","X-Men: The Last Stand","X-Men Origins: Wolverine","X-Men: First Class",
+      "The Wolverine","X-Men: Days of Future Past","Deadpool","X-Men: Apocalypse","Logan",
+      "Deadpool 2","Dark Phoenix","The New Mutants",
+    ] },
+  { key:"insidious", emoji:"🕯️", nameIt:"Insidious", nameEn:"Insidious",
+    noteIt:"Ordine di uscita al cinema.", noteEn:"Theatrical release order.",
+    mode:"titles",
+    titles:[
+      {t:"Insidious",y:2011},"Insidious: Chapter 2","Insidious: Chapter 3","Insidious: The Last Key","Insidious: The Red Door",
+    ] },
+  { key:"unbreakable", emoji:"🪞", nameIt:"Eastrail 177 Trilogy (Unbreakable)", nameEn:"Eastrail 177 Trilogy (Unbreakable)",
+    noteIt:"Trilogia di M. Night Shyamalan, ordine di uscita (18 anni tra il primo e il secondo film).",
+    noteEn:"M. Night Shyamalan's trilogy, release order (18 years between the first and second film).",
+    mode:"titles",
+    titles:[ "Unbreakable","Split","Glass" ] },
+  { key:"ssu", emoji:"🕸️", nameIt:"Spider-Man (tutti i film)", nameEn:"Spider-Man (all movies)",
+    noteIt:"Tutte le versioni cinematografiche di Spider-Man più gli spin-off Sony, ordine di uscita.",
+    noteEn:"Every live-action Spider-Man continuity plus the Sony spin-offs, release order.",
+    mode:"titles",
+    titles:[
+      {t:"Spider-Man",y:2002},"Spider-Man 2","Spider-Man 3","The Amazing Spider-Man","The Amazing Spider-Man 2",
+      "Spider-Man: Homecoming","Venom","Spider-Man: Far From Home","Venom: Let There Be Carnage",
+      "Spider-Man: No Way Home","Morbius","Madame Web","Venom: The Last Dance","Kraven the Hunter",
+    ] },
+  { key:"middleearth", emoji:"💍", nameIt:"Middle-earth (Lord of the Rings)", nameEn:"Middle-earth (Lord of the Rings)",
+    noteIt:"Lo Hobbit e Il Signore degli Anelli, in ordine cronologico della storia.",
+    noteEn:"The Hobbit and The Lord of the Rings, in-universe chronological order.",
+    mode:"titles",
+    titles:[
+      "The Hobbit: An Unexpected Journey","The Hobbit: The Desolation of Smaug","The Hobbit: The Battle of the Five Armies",
+      "The Lord of the Rings: The Fellowship of the Ring","The Lord of the Rings: The Two Towers","The Lord of the Rings: The Return of the King",
+    ] },
+  { key:"apes", emoji:"🦍", nameIt:"Il Pianeta delle Scimmie", nameEn:"Planet of the Apes",
+    noteIt:"Serie originale + remake + reboot, ordine di uscita.", noteEn:"Original series + remake + reboot series, release order.",
+    mode:"titles",
+    titles:[
+      "Planet of the Apes","Beneath the Planet of the Apes","Escape from the Planet of the Apes",
+      "Conquest of the Planet of the Apes","Battle for the Planet of the Apes",{t:"Planet of the Apes",y:2001},
+      "Rise of the Planet of the Apes","Dawn of the Planet of the Apes","War for the Planet of the Apes",
+      "Kingdom of the Planet of the Apes",
+    ] },
+  { key:"halloween", emoji:"🔪", nameIt:"Halloween", nameEn:"Halloween",
+    noteIt:"Attenzione: la saga ha più linee temporali diverse tra loro (alcuni film ignorano gli altri). Qui l'ordine di uscita.",
+    noteEn:"Note: this saga has several conflicting timelines (some films ignore others). Release order shown here.",
+    mode:"titles",
+    titles:[
+      "Halloween","Halloween II","Halloween III: Season of the Witch","Halloween 4: The Return of Michael Myers",
+      "Halloween 5: The Revenge of Michael Myers","Halloween: The Curse of Michael Myers","Halloween H20: 20 Years Later",
+      "Halloween: Resurrection",{t:"Halloween",y:2007},{t:"Halloween II",y:2009},{t:"Halloween",y:2018},
+      "Halloween Kills","Halloween Ends",
+    ] },
+  { key:"scream", emoji:"🎭", nameIt:"Scream", nameEn:"Scream",
+    noteIt:"Ordine di uscita al cinema.", noteEn:"Theatrical release order.",
+    mode:"titles",
+    titles:[ "Scream","Scream 2","Scream 3","Scream 4",{t:"Scream",y:2022},"Scream VI" ] },
+  { key:"saw", emoji:"🪚", nameIt:"Saw", nameEn:"Saw",
+    noteIt:"Ordine di uscita al cinema.", noteEn:"Theatrical release order.",
+    mode:"titles",
+    titles:[
+      {t:"Saw",y:2004},"Saw II","Saw III","Saw IV","Saw V","Saw VI","Saw 3D","Jigsaw",{t:"Spiral: From the Book of Saw",y:2021},"Saw X",
+    ] },
+  { key:"terminator", emoji:"🤖", nameIt:"Terminator", nameEn:"Terminator",
+    noteIt:"Attenzione: dopo il secondo film esistono più linee temporali diverse tra loro. Qui l'ordine di uscita.",
+    noteEn:"Note: after the second film there are several conflicting timelines. Release order shown here.",
+    mode:"titles",
+    titles:[
+      "The Terminator","Terminator 2: Judgment Day","Terminator 3: Rise of the Machines",
+      "Terminator Salvation","Terminator Genisys","Terminator: Dark Fate",
+    ] },
+];
+
+function buildUniversesGrid(){
+  const wrap = document.getElementById("universesList");
+  wrap.innerHTML = "";
+  UNIVERSES.forEach(u=>{
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mood-tile";
+    btn.innerHTML = `<span class="emoji">${u.emoji}</span>${currentLang==="en"?u.nameEn:u.nameIt}`;
+    btn.addEventListener("click", ()=> openUniverseDetail(u));
+    wrap.appendChild(btn);
+  });
+}
+
+async function openUniverseDetail(universe){
+  document.getElementById("universesList").hidden = true;
+  const detail = document.getElementById("universesDetail");
+  detail.hidden = false;
+  document.getElementById("universesDetailTitle").textContent = `${universe.emoji} ${currentLang==="en"?universe.nameEn:universe.nameIt}`;
+  document.getElementById("universesDetailNote").textContent = currentLang==="en" ? universe.noteEn : universe.noteIt;
+  const grid = document.getElementById("universesDetailGrid");
+  grid.innerHTML = `<div class="loader"><div class="spin"></div>Caricamento…</div>`;
+
+  try{
+    let items = [];
+    if(universe.mode === "titles"){
+      const results = await Promise.all(universe.titles.map(entry => {
+        const title = typeof entry === "string" ? entry : entry.t;
+        const year = typeof entry === "string" ? null : entry.y;
+        const params = year ? { query: title, primary_release_year: year } : { query: title };
+        return tmdb("/search/movie", params).then(r => (r.results||[])[0]).catch(()=>null);
+      }));
+      items = results.filter(Boolean);
+    } else {
+      const kw = await tmdb("/search/keyword", { query: universe.keyword });
+      const keywordId = kw.results && kw.results[0] && kw.results[0].id;
+      if(keywordId){
+        const disc = await tmdb("/discover/movie", { with_keywords: keywordId, sort_by:"primary_release_date.asc", "vote_count.gte":5 });
+        items = (disc.results||[]).filter(x=>x.poster_path);
+      }
+    }
+    grid.innerHTML = "";
+    if(!items.length){ grid.innerHTML = `<div class="empty">${currentLang==="en"?"Couldn't find this universe's titles right now.":"Non riesco a trovare i titoli di questo universo al momento."}</div>`; return; }
+    items.forEach((item,i)=>{
+      const card = buildCard({...item, media_type:"movie"}, "movie");
+      const badge = document.createElement("span");
+      badge.className = "tagpill";
+      badge.style.cssText = "position:absolute;top:8px;left:8px;background:rgba(0,0,0,.75);z-index:2;";
+      badge.textContent = i+1;
+      card.style.position = "relative";
+      card.appendChild(badge);
+      grid.appendChild(card);
+    });
+  }catch(e){
+    grid.innerHTML = `<div class="empty">${currentLang==="en"?"Something went wrong loading this universe.":"Qualcosa è andato storto nel caricare questo universo."}</div>`;
+  }
+}
+
+const universesOverlay = document.getElementById("universesOverlay");
+document.getElementById("openUniverses").addEventListener("click", ()=>{
+  document.getElementById("universesList").hidden = false;
+  document.getElementById("universesDetail").hidden = true;
+  buildUniversesGrid();
+  universesOverlay.classList.add("open");
+});
+document.getElementById("universesClose").addEventListener("click", ()=>{
+  const inDetail = !document.getElementById("universesDetail").hidden;
+  if(inDetail){
+    document.getElementById("universesDetail").hidden = true;
+    document.getElementById("universesList").hidden = false;
+  } else {
+    universesOverlay.classList.remove("open");
+  }
+});
+universesOverlay.addEventListener("click", e=>{ if(e.target===universesOverlay) universesOverlay.classList.remove("open"); });
+document.getElementById("universesBack").addEventListener("click", ()=>{
+  document.getElementById("universesDetail").hidden = true;
+  document.getElementById("universesList").hidden = false;
+});
+
+/* ================= CALENDARIO EPISODI ================= */
+const calendarOverlay = document.getElementById("calendarOverlay");
+document.getElementById("openCalendar").addEventListener("click", ()=>{
+  calendarOverlay.classList.add("open");
+  buildCalendar();
+});
+document.getElementById("calendarClose").addEventListener("click", ()=> calendarOverlay.classList.remove("open"));
+calendarOverlay.addEventListener("click", e=>{ if(e.target===calendarOverlay) calendarOverlay.classList.remove("open"); });
+
+async function buildCalendar(){
+  const el = document.getElementById("calendarResults");
+  const followedShows = FAVORITES.tv;
+
+  if(!followedShows.length){
+    el.innerHTML = `<div class="empty">Non hai ancora serie TV nei preferiti.<br>Aggiungine qualcuna per vedere qui i prossimi episodi in arrivo.</div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="loader"><div class="spin"></div>Controllo i prossimi episodi…</div>`;
+
+  try{
+    const details = await Promise.all(followedShows.map(s => tmdb(`/tv/${s.id}`).catch(()=>null)));
+    const upcoming = [];
+    details.forEach((d, i)=>{
+      if(d && d.next_episode_to_air && d.next_episode_to_air.air_date){
+        upcoming.push({
+          show: followedShows[i],
+          ep: d.next_episode_to_air
+        });
+      }
+    });
+    upcoming.sort((a,b)=> a.ep.air_date.localeCompare(b.ep.air_date));
+
+    el.innerHTML = "";
+    if(!upcoming.length){
+      el.innerHTML = `<div class="empty">Nessun episodio in arrivo annunciato al momento per le serie che segui.</div>`;
+      return;
+    }
+
+    upcoming.forEach(u=>{
+      const row = document.createElement("div");
+      row.className = "fav-row";
+      const poster = posterUrl(u.show.poster_path);
+      row.innerHTML = `
+        ${poster?`<img src="${poster}" alt="">`:`<div class="noimg-mini">${u.show.title}</div>`}
+        <div class="fav-row-info">
+          <div class="fav-row-title">${u.show.title}</div>
+          <div class="fav-row-sub">
+            <span class="type-tag">S${u.ep.season_number} E${u.ep.episode_number}</span>
+            <span>${formatShortDate(u.ep.air_date)}</span>
+          </div>
+        </div>
+      `;
+      row.addEventListener("click", ()=> openDetail(u.show.id, "tv"));
+      el.appendChild(row);
+    });
+  }catch(e){
+    el.innerHTML = `<div class="empty">Errore nel caricamento del calendario.</div>`;
+  }
+}
+
+/* ================= PERSON SEARCH ================= */
+function switchToSearchTab(){
+  document.querySelectorAll(".nav [data-view]").forEach(b=>b.classList.remove("active"));
+  document.querySelector('.nav [data-view="search"]').classList.add("active");
+  document.querySelectorAll(".view").forEach(v=>v.hidden = true);
+  document.getElementById("view-search").hidden = false;
+}
+
+let personWorksCache = [];
+let personWorksLabel = "";
+
+function renderPersonWorks(){
+  const resultsEl = document.getElementById("searchResults");
+  const typeFilter = document.getElementById("pw-type")?.value || "all";
+  const hideExtras = document.getElementById("pw-hide-extras")?.checked ?? true;
+
+  let list = personWorksCache;
+  if(typeFilter!=="all") list = list.filter(x=>x.media_type===typeFilter);
+  if(hideExtras){
+    list = list.filter(x=>{
+      const ch = (x.character||"").trim().toLowerCase();
+      if(!ch) return true; // ruoli di doppiaggio/crew senza personaggio indicato restano (es. animazione)
+      return !/^(self|narrator|host|himself|herself|themselves|guest)/.test(ch);
+    });
+  }
+
+  const bar = `
+    <div class="filters" style="margin-bottom:16px;padding:14px;">
+      <div class="field">
+        <label>Tipo</label>
+        <select id="pw-type">
+          <option value="all">Film + Serie TV</option>
+          <option value="movie">Solo film</option>
+          <option value="tv">Solo serie TV</option>
+        </select>
+      </div>
+      <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);font-weight:600;">
+          <input type="checkbox" id="pw-hide-extras" style="width:16px;height:16px;">
+          Nascondi apparizioni non recitate (talk show, doc, ospitate)
+        </label>
+      </div>
+    </div>
+  `;
+
+  resultsEl.innerHTML = `
+    <p style="color:var(--muted);font-size:13px;margin:0 0 14px;">${personWorksLabel}</p>
+    ${bar}
+  `;
+  document.getElementById("pw-type").value = typeFilter;
+  document.getElementById("pw-hide-extras").checked = hideExtras;
+  document.getElementById("pw-type").addEventListener("change", renderPersonWorks);
+  document.getElementById("pw-hide-extras").addEventListener("change", renderPersonWorks);
+
+  if(!list.length){
+    resultsEl.innerHTML += `<div class="empty">Nessun titolo trovato con questi filtri.</div>`;
+    return;
+  }
+  const grid = document.createElement("div");
+  grid.className = "results-grid";
+  list.forEach(item=> grid.appendChild(buildCard(item, item.media_type)));
+  resultsEl.appendChild(grid);
+}
+
+async function openPersonWorks(personId, personName, asCrew){
+  switchToSearchTab();
+  const resultsEl = document.getElementById("searchResults");
+  resultsEl.innerHTML = `<div class="loader"><div class="spin"></div>Ricerca in corso…</div>`;
+  try{
+    const credits = await tmdb(`/person/${personId}/combined_credits`);
+    let list = asCrew ? (credits.crew||[]).filter(c=>c.department==="Directing") : (credits.cast||[]);
+    const seen = new Set();
+    list = list.filter(x=>{
+      const k = x.media_type+"-"+x.id;
+      if(seen.has(k) || !x.poster_path) return false;
+      seen.add(k); return true;
+    });
+    list.sort((a,b)=>(b.popularity||0)-(a.popularity||0));
+
+    personWorksCache = list;
+    personWorksLabel = `${asCrew?'Regia di':'Con'} ${personName}`;
+    renderPersonWorks();
+  }catch(e){
+    resultsEl.innerHTML = `<div class="empty">Errore nel caricamento dei titoli.</div>`;
+  }
+}
+
+/* ================= NAV ================= */
+document.querySelectorAll(".nav [data-view]").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".nav [data-view]").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".view").forEach(v=>v.hidden = true);
+    document.getElementById("view-"+btn.dataset.view).hidden = false;
+    if(btn.dataset.view==="favorites") renderFavorites();
+    if(btn.dataset.view==="popular" && !document.getElementById("popularResults").innerHTML) runPopular();
+  });
+});
+
+/* ================= PROFILO (Firebase, automatico) ================= */
+function colorForProfile(uid){
+  const palette = ["#4f7cff","#e3a857","#7a5cf0","#3fb88a","#e0668f","#3fb0d6","#d69a3f","#8a6bd6"];
+  let hash = 0;
+  for(let i=0;i<uid.length;i++) hash = (hash*31 + uid.charCodeAt(i)) % palette.length;
+  return palette[Math.abs(hash)];
+}
+
+/* ---------- SPLASH VIDEO ---------- */
+let videoDoneResolve;
+const videoDonePromise = new Promise(res=> videoDoneResolve = res);
+function endSplash(){
+  const splash = document.getElementById("splash");
+  if(splash){ splash.classList.add("fade-out"); setTimeout(()=> splash.remove(), 650); }
+  if(videoDoneResolve){ videoDoneResolve(); videoDoneResolve = null; }
+}
+document.getElementById("introVideo").addEventListener("ended", endSplash);
+document.getElementById("introVideo").addEventListener("error", endSplash);
+document.getElementById("splashSkip").addEventListener("click", endSplash);
+setTimeout(endSplash, 12000);
+
+/* ---- Accesso/collegamento con Google (riutilizzabile) ---- */
+function startGoogleAuth(){
+  try{
+    const provider = new firebase.auth.GoogleAuthProvider();
+    if(fbAuth.currentUser && fbAuth.currentUser.isAnonymous){
+      return fbAuth.currentUser.linkWithRedirect(provider);
+    } else {
+      return fbAuth.signInWithRedirect(provider);
+    }
+  }catch(e){
+    return Promise.reject(e);
+  }
+}
+
+let pendingGoogleDisplayName = null;
+
+async function handleGoogleRedirectResult(){
+  try{
+    const result = await fbAuth.getRedirectResult();
+    if(result && result.user){
+      pendingGoogleDisplayName = result.user.displayName || null;
+    }
+  }catch(e){
+    if(e.code === "auth/credential-already-in-use" && e.credential){
+      try{
+        const result = await fbAuth.signInWithCredential(e.credential);
+        pendingGoogleDisplayName = (result.user && result.user.displayName) || null;
+      }catch(e2){
+        console.error("Accesso con l'account Google esistente fallito.", e2);
+      }
+    } else if(e.code && e.code !== "auth/no-auth-event") {
+      console.error("Accesso con Google fallito.", e);
+    }
+  }
+}
+
+const ONBOARDING_SLIDES = [
+  { emoji:"🎭", it:["Scegli per mood", "Dieci stati d'animo, dal \"voglio ridere\" al \"col fiato sospeso\": cerchiamo nell'intero catalogo, non solo tra i tuoi preferiti."],
+    en:["Pick by mood", "Ten moods, from \"make me laugh\" to \"on the edge of my seat\": we search the whole catalog, not just your favorites."] },
+  { emoji:"🤝", it:["Match in coppia", "Tu scegli un mood, chi guarda con te ne sceglie un altro: troviamo qualcosa che piaccia a entrambi."],
+    en:["Match mode", "You pick a mood, your co-watcher picks another: we find something you'll both enjoy."] },
+  { emoji:"📺", it:["Tutte le tue piattaforme", "Netflix, Prime Video, HBO Max, Apple TV+, Paramount+ e Crunchyroll: sai sempre dove guardare cosa."],
+    en:["All your platforms", "Netflix, Prime Video, HBO Max, Apple TV+, Paramount+ and Crunchyroll: always know where to watch what."] },
+  { emoji:"⭐", it:["Voti e recensioni vere", "Vota ciò che vedi e scrivi cosa ne pensi. Le recensioni sono pubbliche: aiuta gli altri, lasciati aiutare da loro."],
+    en:["Real ratings and reviews", "Rate what you watch and share your thoughts. Reviews are public: help others, and let them help you."] },
+];
+
+function showOnboarding(){
+  return new Promise(resolve=>{
+    if(localStorage.getItem("cinemood-onboarding-seen")){ resolve(); return; }
+    const overlay = document.getElementById("onboardingOverlay");
+    const dotsWrap = document.getElementById("onboardingDots");
+    const nextBtn = document.getElementById("onboardingNext");
+    const skipBtn = document.getElementById("onboardingSkip");
+    let i = 0;
+
+    dotsWrap.innerHTML = ONBOARDING_SLIDES.map((_,idx)=>`<span class="${idx===0?'active':''}"></span>`).join("");
+    const dots = dotsWrap.querySelectorAll("span");
+
+    function render(){
+      const s = ONBOARDING_SLIDES[i];
+      const [title, text] = currentLang==="en" ? s.en : s.it;
+      document.getElementById("onbEmoji").textContent = s.emoji;
+      document.getElementById("onbTitle").textContent = title;
+      document.getElementById("onbText").textContent = text;
+      dots.forEach((d,idx)=> d.classList.toggle("active", idx===i));
+      nextBtn.textContent = i===ONBOARDING_SLIDES.length-1
+        ? (currentLang==="en" ? "Let's go" : "Iniziamo")
+        : (currentLang==="en" ? "Next" : "Avanti");
+    }
+    function finish(){
+      localStorage.setItem("cinemood-onboarding-seen", "1");
+      overlay.hidden = true;
+      resolve();
+    }
+    nextBtn.onclick = ()=>{
+      if(i < ONBOARDING_SLIDES.length-1){ i++; render(); } else { finish(); }
+    };
+    skipBtn.onclick = finish;
+    skipBtn.textContent = currentLang==="en" ? "Skip ▸" : "Salta ▸";
+
+    render();
+    overlay.hidden = false;
+  });
+}
+
+function askForName(){
+  return new Promise(resolve=>{
+    const overlay = document.getElementById("welcomeOverlay");
+    document.getElementById("welcomeTitle").textContent = currentLang==="en" ? "What's your name?" : "Come ti chiami?";
+    document.getElementById("welcomeSubtitle").textContent = currentLang==="en" ? "Shown on your reviews — nothing else is required." : "Comparirà sulle tue recensioni — nessun'altra informazione richiesta.";
+    const input = document.getElementById("welcomeNameInput");
+    const btn = document.getElementById("welcomeEnterBtn");
+    const googleBtn = document.getElementById("googleSignInBtn");
+    btn.textContent = currentLang==="en" ? "Enter without an account" : "Entra senza account";
+    googleBtn.textContent = "🔵 " + (currentLang==="en" ? "Sign in with Google" : "Accedi con Google");
+    overlay.hidden = false;
+    setTimeout(()=> input.focus(), 50);
+    const submit = ()=>{
+      const chosen = input.value.trim().slice(0,20);
+      if(!chosen) return;
+      CURRENT_DISPLAY_NAME = chosen;
+      overlay.hidden = true;
+      resolve();
+      persistAll(); // salva in background, senza bloccare l'ingresso
+    };
+    btn.onclick = submit;
+    input.onkeydown = (e)=>{ if(e.key==="Enter") submit(); };
+
+    googleBtn.onclick = ()=>{
+      googleBtn.disabled = true;
+      googleBtn.textContent = currentLang==="en" ? "Connecting..." : "Connessione...";
+      startGoogleAuth().catch((e)=>{
+        console.error("Accesso con Google fallito.", e);
+        alert(currentLang==="en" ? "Google sign-in failed. Try again, or choose a name instead." : "Accesso con Google non riuscito. Riprova, oppure scegli un nome.");
+        googleBtn.disabled = false;
+        googleBtn.textContent = "🔵 " + (currentLang==="en" ? "Sign in with Google" : "Accedi con Google");
+      });
+      // la pagina sta per reindirizzare verso Google: il resto avviene al ritorno, al prossimo caricamento
+    };
+  });
+}
+
+async function bootProfile(uid){
+  CURRENT_PROFILE = uid;
+  await loadState();
+  await videoDonePromise;
+
+  if(!CURRENT_DISPLAY_NAME && pendingGoogleDisplayName){
+    CURRENT_DISPLAY_NAME = pendingGoogleDisplayName;
+    pendingGoogleDisplayName = null;
+    persistAll();
+  }
+
+  if(!CURRENT_DISPLAY_NAME){
+    await showOnboarding();
+    await askForName();
+  }
+
+  const profColor = colorForProfile(uid);
+  const swBtn = document.getElementById("switchProfileBtn");
+  swBtn.title = CURRENT_DISPLAY_NAME;
+  swBtn.textContent = CURRENT_DISPLAY_NAME[0].toUpperCase();
+  swBtn.style.background = profColor+"22";
+  swBtn.style.color = profColor;
+  swBtn.style.borderColor = profColor+"55";
+
+  renderFavorites();
+  refreshAllCardStates();
+  await loadPlatformLogos();
+  buildHome();
+  await loadGenres();
+  updateProtectButton();
+
+  const openParam = new URLSearchParams(location.search).get("open");
+  if(openParam){
+    const [sharedType, sharedId] = openParam.split("-");
+    if((sharedType==="movie"||sharedType==="tv") && sharedId){
+      openDetail(Number(sharedId), sharedType);
+    }
+    history.replaceState(null, "", location.pathname); // pulisce l'indirizzo, non riapre più al prossimo caricamento
+  }
+}
+
+function updateProtectButton(){
+  const btn = document.getElementById("protectProfileBtn");
+  const googleBtn = document.getElementById("linkGoogleBtn");
+  const providers = (fbAuth.currentUser && fbAuth.currentUser.providerData) || [];
+  const linkedEmail = providers.find(p=>p.providerId==="password" || p.providerId==="emailLink");
+  const linkedGoogle = providers.find(p=>p.providerId==="google.com");
+
+  if(linkedEmail){
+    btn.textContent = currentLang==="en" ? `✅ Profile protected (${linkedEmail.email})` : `✅ Profilo protetto (${linkedEmail.email})`;
+    btn.disabled = true;
+    btn.style.textDecoration = "none";
+    btn.style.cursor = "default";
+  } else {
+    btn.textContent = t("footer.protect");
+    btn.disabled = false;
+    btn.style.textDecoration = "underline";
+    btn.style.cursor = "pointer";
+  }
+
+  if(linkedGoogle){
+    googleBtn.textContent = currentLang==="en" ? `✅ Google connected (${linkedGoogle.email})` : `✅ Google collegato (${linkedGoogle.email})`;
+    googleBtn.disabled = true;
+    googleBtn.style.textDecoration = "none";
+    googleBtn.style.cursor = "default";
+  } else {
+    googleBtn.textContent = "🔵 " + (currentLang==="en" ? "Connect Google" : "Collega Google");
+    googleBtn.disabled = false;
+    googleBtn.style.textDecoration = "underline";
+    googleBtn.style.cursor = "pointer";
+  }
+}
+
+document.getElementById("linkGoogleBtn").addEventListener("click", ()=>{
+  const googleBtn = document.getElementById("linkGoogleBtn");
+  googleBtn.disabled = true;
+  googleBtn.textContent = currentLang==="en" ? "Connecting..." : "Connessione...";
+  startGoogleAuth().catch((e)=>{
+    console.error("Collegamento Google fallito.", e);
+    alert(currentLang==="en" ? "Google connection failed. Try again." : "Collegamento con Google non riuscito. Riprova.");
+    updateProtectButton();
+  });
+});
+
+document.getElementById("switchProfileBtn").addEventListener("click", (e)=>{
+  e.stopPropagation();
+  const menu = document.getElementById("profileMenu");
+  document.getElementById("profileMenuName").textContent = CURRENT_DISPLAY_NAME || "";
+  menu.hidden = !menu.hidden;
+});
+document.addEventListener("click", (e)=>{
+  const menu = document.getElementById("profileMenu");
+  if(!menu.hidden && !menu.contains(e.target)) menu.hidden = true;
+});
+
+document.getElementById("menuRenameBtn").addEventListener("click", ()=>{
+  document.getElementById("profileMenu").hidden = true;
+  const chosen = (prompt(currentLang==="en" ? "Change your display name:" : "Cambia il tuo nome:", CURRENT_DISPLAY_NAME) || "").trim().slice(0,20);
+  if(chosen){
+    CURRENT_DISPLAY_NAME = chosen;
+    persistAll();
+    document.getElementById("switchProfileBtn").textContent = chosen[0].toUpperCase();
+    document.getElementById("switchProfileBtn").title = chosen;
+  }
+});
+
+document.getElementById("menuSignOutBtn").addEventListener("click", async ()=>{
+  document.getElementById("profileMenu").hidden = true;
+  const ok = confirm(currentLang==="en"
+    ? "Sign out? You can get back in by choosing Google, entering your recovery email, or starting a new profile."
+    : "Uscire? Potrai rientrare scegliendo Google, inserendo la tua email di recupero, o iniziando un nuovo profilo.");
+  if(!ok) return;
+  try{
+    await fbAuth.signOut();
+  }catch(e){
+    console.error("Uscita non riuscita.", e);
+  }
+});
+
+/* ================= RECUPERO PROFILO (email link) ================= */
+const RECOVERY_ACTION_SETTINGS = { url: location.href.split("#")[0], handleCodeInApp: true };
+
+async function sendRecoveryLink(email, mode){
+  try{
+    await fbAuth.sendSignInLinkToEmail(email, RECOVERY_ACTION_SETTINGS);
+    localStorage.setItem("cinemood-recovery-email", email);
+    localStorage.setItem("cinemood-recovery-mode", mode);
+    alert(currentLang==="en"
+      ? "Check your email and open the link on this device to continue."
+      : "Controlla la tua email e apri il link su questo stesso dispositivo per continuare.");
+  }catch(e){
+    console.error("Invio link di recupero fallito.", e);
+    alert(currentLang==="en" ? "Something went wrong. Try again." : "Qualcosa è andato storto. Riprova.");
+  }
+}
+
+document.getElementById("protectProfileBtn").addEventListener("click", ()=>{
+  const email = (prompt(currentLang==="en" ? "Enter your email to protect your profile:" : "Inserisci la tua email per proteggere il profilo:") || "").trim();
+  if(!email) return;
+  sendRecoveryLink(email, "link");
+});
+
+document.getElementById("recoverProfileBtn").addEventListener("click", ()=>{
+  const email = (prompt(currentLang==="en" ? "Enter the email you used to protect your profile:" : "Inserisci l'email che avevi usato per proteggere il profilo:") || "").trim();
+  if(!email) return;
+  sendRecoveryLink(email, "signin");
+});
+
+/* ================= INIT ================= */
+document.addEventListener("keydown", (e)=>{
+  if(e.key!=="Escape") return;
+  ["detailOverlay","moodOverlay","recOverlay","upcomingOverlay","calendarOverlay"].forEach(oid=>{
+    const el = document.getElementById(oid);
+    if(el && el.classList.contains("open")) el.classList.remove("open");
+  });
+});
+
+buildMoodGrid();
+
+let processingRecovery = fbAuth.isSignInWithEmailLink(window.location.href);
+
+if(processingRecovery){
+  (async ()=>{
+    let email = localStorage.getItem("cinemood-recovery-email");
+    if(!email){
+      email = (prompt(currentLang==="en" ? "Confirm your email to continue:" : "Conferma la tua email per continuare:") || "").trim();
+    }
+    const mode = localStorage.getItem("cinemood-recovery-mode") || "signin";
+    try{
+      if(mode==="link" && fbAuth.currentUser){
+        const cred = firebase.auth.EmailAuthProvider.credentialWithLink(email, window.location.href);
+        await fbAuth.currentUser.linkWithCredential(cred);
+        alert(currentLang==="en"
+          ? "Profile protected! You can now recover it on any device with this email."
+          : "Profilo protetto! Ora puoi recuperarlo su qualsiasi dispositivo con questa email.");
+      } else {
+        await fbAuth.signInWithEmailLink(email, window.location.href);
+      }
+    }catch(e){
+      console.error("Recupero/collegamento fallito.", e);
+      alert(currentLang==="en" ? "This recovery link is invalid or expired." : "Questo link di recupero non è valido o è scaduto.");
+    }finally{
+      localStorage.removeItem("cinemood-recovery-email");
+      localStorage.removeItem("cinemood-recovery-mode");
+      history.replaceState(null, "", location.pathname);
+      processingRecovery = false;
+      if(fbAuth.currentUser) bootProfile(fbAuth.currentUser.uid);
+    }
+  })();
+}
+
+fbAuth.onAuthStateChanged((user)=>{
+  if(processingRecovery || processingGoogleRedirect) return;
+  if(user){
+    bootProfile(user.uid);
+  } else {
+    fbAuth.signInAnonymously().catch((e)=>{
+      console.error("Accesso anonimo fallito.", e);
+      document.getElementById("platformShelves").innerHTML = `<div class="empty">Impossibile collegarsi. Controlla la connessione e ricarica la pagina.</div>`;
+    });
+  }
+});
+
+let processingGoogleRedirect = true;
+Promise.race([
+  handleGoogleRedirectResult(),
+  new Promise(resolve => setTimeout(resolve, 5000)) // rete di sicurezza: non restare bloccati per sempre
+]).finally(()=>{
+  processingGoogleRedirect = false;
+  if(processingRecovery) return;
+  if(fbAuth.currentUser){
+    bootProfile(fbAuth.currentUser.uid);
+  } else {
+    fbAuth.signInAnonymously().catch((e)=>{
+      console.error("Accesso anonimo fallito.", e);
+      document.getElementById("platformShelves").innerHTML = `<div class="empty">Impossibile collegarsi. Controlla la connessione e ricarica la pagina.</div>`;
+    });
+  }
+});
+</script>
+</body>
+</html>
