@@ -1,8 +1,0 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "io.github.ricvali89_cpu.twa",
-        "sha256_cert_fingerprints": ["18:D7:C1:35:E3:7E:D9:0F:55:FC:EC:30:B8:03:35:16:97:44:8A:95:3D:13:C8:A2:8B:E2:8C:4C:22:41:8C:69"]
-      }
-    }]
