@@ -545,6 +545,56 @@ button{font-family:inherit;cursor:pointer;}
 .mood-result{padding:0 24px 24px;text-align:center;}
 .mood-result .pick-card{max-width:260px;margin:14px auto 0;}
 
+
+/* ---------- SCHEDA PERSONA ---------- */
+.person-profile{
+  display:grid;grid-template-columns:180px minmax(0,1fr);gap:22px;
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  padding:18px;margin-bottom:18px;box-shadow:var(--shadow);
+}
+.person-profile-photo{
+  width:180px;aspect-ratio:2/3;object-fit:cover;border-radius:12px;background:var(--surface-2);
+}
+.person-profile-photo.no-photo{
+  display:flex;align-items:center;justify-content:center;color:var(--muted);
+  font-size:12px;text-align:center;padding:12px;
+}
+.person-profile h2{margin:0 0 8px;font-size:28px;line-height:1.1;}
+.person-facts{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px;}
+.person-fact{
+  display:inline-flex;align-items:center;gap:5px;background:var(--bg-soft);
+  border:1px solid var(--line);border-radius:999px;padding:6px 9px;
+  font-size:11.5px;color:var(--muted);
+}
+.person-bio{font-size:13.5px;line-height:1.65;color:#d8dbe0;white-space:pre-line;margin:10px 0 0;}
+.person-source-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center;}
+.person-source-label{font-size:11.5px;color:var(--muted);}
+.person-source-link{
+  display:inline-flex;align-items:center;gap:5px;text-decoration:none;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--text);
+  padding:6px 9px;border-radius:999px;font-size:11.5px;font-weight:700;
+}
+.person-source-link:hover{border-color:var(--gold-dim);color:var(--gold);}
+.person-section-title{
+  margin:20px 0 10px;font-size:15px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--muted);
+}
+.person-top-row{display:flex;gap:12px;overflow-x:auto;padding:4px 0 10px;}
+.person-top-row .card{min-width:145px;width:145px;}
+.person-filmography-head{
+  display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap;
+  margin:18px 0 10px;
+}
+@media(max-width:640px){
+  .person-profile{grid-template-columns:110px minmax(0,1fr);gap:14px;padding:14px;}
+  .person-profile-photo{width:110px;}
+  .person-profile h2{font-size:22px;}
+}
+@media(max-width:430px){
+  .person-profile{grid-template-columns:1fr;}
+  .person-profile-photo{width:140px;margin:0 auto;}
+}
+
 /* ---------- LOADING / TOAST ---------- */
 .loader{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;padding:20px 0;}
 .spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--gold);animation:sp 0.8s linear infinite;}
@@ -847,7 +897,7 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
   <div id="favGrid" class="fav-list"></div>
 </section>
 
-<footer><span data-i18n="footer.text">CineMood · dati forniti da TMDB · uso personale</span> · <a href="privacy.html" style="color:var(--muted);">Privacy Policy</a> · <a href="mailto:ricvali89@gmail.com?subject=CineMood%20-%20Segnalazione&body=Descrivi%20qui%20il%20problema%20o%20il%20suggerimento%3A%0A%0A" style="color:var(--muted);" data-i18n="footer.report">🐛 Segnala un problema</a> · <button id="protectProfileBtn" type="button" class="footer-link-btn" data-i18n="footer.protect">🔒 Proteggi il tuo profilo</button> · <button id="linkGoogleBtn" type="button" class="footer-link-btn">🔵 Collega Google</button></footer>
+<footer><span data-i18n="footer.text">CineMood · Dati e immagini da TMDB · This product uses the TMDB API but is not endorsed or certified by TMDB.</span> · <a href="privacy.html" style="color:var(--muted);">Privacy Policy</a> · <a href="mailto:ricvali89@gmail.com?subject=CineMood%20-%20Segnalazione&body=Descrivi%20qui%20il%20problema%20o%20il%20suggerimento%3A%0A%0A" style="color:var(--muted);" data-i18n="footer.report">🐛 Segnala un problema</a> · <button id="protectProfileBtn" type="button" class="footer-link-btn" data-i18n="footer.protect">🔒 Proteggi il tuo profilo</button> · <button id="linkGoogleBtn" type="button" class="footer-link-btn">🔵 Collega Google</button></footer>
 
 </div>
 
@@ -1008,7 +1058,7 @@ const I18N = {
     "sort.rating":"Voto più alto", "sort.recent":"Più recenti", "sort.alpha":"Alfabetico", "sort.year":"Anno",
     "sort.relevance":"Rilevanza", "sort.yearDesc":"Anno (più recenti)", "sort.yearAsc":"Anno (più vecchi)",
     "btn.updateFilter":"Aggiorna / Filtra", "btn.clear":"Pulisci", "btn.search":"Cerca", "btn.backHome":"🏠 Torna alla Home",
-    "footer.text":"CineMood · dati forniti da TMDB · uso personale", "footer.report":"🐛 Segnala un problema",
+    "footer.text":"CineMood · Dati e immagini da TMDB · This product uses the TMDB API but is not endorsed or certified by TMDB.", "footer.report":"🐛 Segnala un problema",
     "mood.title":"Che mood hai stasera?", "mood.subtitle":"Scegli un mood, affina con anno/piattaforma se vuoi, poi cerca in tutto il catalogo.",
     "mood.matchToggle":"🤝 Modalità Match — trova qualcosa che piaccia a entrambi",
     "mood.yourMood":"Il tuo mood", "mood.partnerMood":"Il mood del/la partner",
@@ -1048,7 +1098,7 @@ const I18N = {
     "sort.rating":"Highest rated", "sort.recent":"Most recent", "sort.alpha":"Alphabetical", "sort.year":"Year",
     "sort.relevance":"Relevance", "sort.yearDesc":"Year (newest)", "sort.yearAsc":"Year (oldest)",
     "btn.updateFilter":"Update / Filter", "btn.clear":"Clear", "btn.search":"Search", "btn.backHome":"🏠 Back Home",
-    "footer.text":"CineMood · data provided by TMDB · personal use", "footer.report":"🐛 Report a problem",
+    "footer.text":"CineMood · Data and images from TMDB · This product uses the TMDB API but is not endorsed or certified by TMDB.", "footer.report":"🐛 Report a problem",
     "mood.title":"What's your mood tonight?", "mood.subtitle":"Pick a mood, narrow by year/platform if you like, then search the whole catalog.",
     "mood.matchToggle":"🤝 Match Mode — find something you'll both enjoy",
     "mood.yourMood":"Your mood", "mood.partnerMood":"Your partner's mood",
@@ -3262,80 +3312,236 @@ function switchToSearchTab(){
 
 let personWorksCache = [];
 let personWorksLabel = "";
+let personProfileData = null;
+let personTopWorks = [];
+let personExternalIds = {};
+
+function escHtml(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+function personCreditDate(item){
+  return item.release_date || item.first_air_date || "";
+}
+
+function formatPersonDate(dateStr){
+  if(!dateStr) return "";
+  try{
+    return new Intl.DateTimeFormat(currentLang==="en" ? "en-GB" : "it-IT", {
+      day:"numeric", month:"long", year:"numeric"
+    }).format(new Date(dateStr+"T00:00:00"));
+  }catch(e){
+    return dateStr;
+  }
+}
+
+function isPersonExtraCredit(item){
+  const ch = (item.character||"").trim().toLowerCase();
+  if(!ch) return false;
+  return /^(self|narrator|host|himself|herself|themselves|guest)/.test(ch);
+}
 
 function renderPersonWorks(){
   const resultsEl = document.getElementById("searchResults");
   const typeFilter = document.getElementById("pw-type")?.value || "all";
   const hideExtras = document.getElementById("pw-hide-extras")?.checked ?? true;
 
-  let list = personWorksCache;
+  let list = personWorksCache.slice();
   if(typeFilter!=="all") list = list.filter(x=>x.media_type===typeFilter);
-  if(hideExtras){
-    list = list.filter(x=>{
-      const ch = (x.character||"").trim().toLowerCase();
-      if(!ch) return true; // ruoli di doppiaggio/crew senza personaggio indicato restano (es. animazione)
-      return !/^(self|narrator|host|himself|herself|themselves|guest)/.test(ch);
-    });
+  if(hideExtras) list = list.filter(x=>!isPersonExtraCredit(x));
+
+  // Cronologia crescente: dal primo lavoro al più recente. Senza data in fondo.
+  list.sort((a,b)=>{
+    const da = personCreditDate(a), db = personCreditDate(b);
+    if(da && db) return da.localeCompare(db) || String(a.title||a.name||"").localeCompare(String(b.title||b.name||""));
+    if(da) return -1;
+    if(db) return 1;
+    return String(a.title||a.name||"").localeCompare(String(b.title||b.name||""));
+  });
+
+  const p = personProfileData || {};
+  const profilePhoto = p.profile_path ? `${IMG}${p.profile_path}` : "";
+  const bioFallback = currentLang==="en" ? "Biography not available on TMDB." : "Biografia non disponibile su TMDB.";
+  const bornLabel = currentLang==="en" ? "Born" : "Nascita";
+  const diedLabel = currentLang==="en" ? "Died" : "Morte";
+  const deptLabel = currentLang==="en" ? "Known for" : "Attività principale";
+  const aliasLabel = currentLang==="en" ? "Also known as" : "Conosciuto anche come";
+  const mainWorksLabel = currentLang==="en" ? "Main works" : "Opere principali";
+  const filmographyLabel = currentLang==="en" ? "Complete filmography" : "Filmografia completa";
+  const sourceLabel = currentLang==="en" ? "Sources" : "Fonti";
+
+  const facts = [];
+  if(p.birthday){
+    const bornText = p.place_of_birth
+      ? `${formatPersonDate(p.birthday)} · ${p.place_of_birth}`
+      : formatPersonDate(p.birthday);
+    facts.push(`<span class="person-fact"><b>${bornLabel}:</b> ${escHtml(bornText)}</span>`);
+  } else if(p.place_of_birth){
+    facts.push(`<span class="person-fact"><b>${bornLabel}:</b> ${escHtml(p.place_of_birth)}</span>`);
   }
+  if(p.deathday) facts.push(`<span class="person-fact"><b>${diedLabel}:</b> ${escHtml(formatPersonDate(p.deathday))}</span>`);
+  if(p.known_for_department) facts.push(`<span class="person-fact"><b>${deptLabel}:</b> ${escHtml(p.known_for_department)}</span>`);
+  if((p.also_known_as||[]).length){
+    facts.push(`<span class="person-fact"><b>${aliasLabel}:</b> ${escHtml((p.also_known_as||[]).slice(0,3).join(", "))}</span>`);
+  }
+
+  const tmdbUrl = p.id ? `https://www.themoviedb.org/person/${p.id}` : "https://www.themoviedb.org";
+  const sourceLinks = [
+    `<a class="person-source-link" href="${tmdbUrl}" target="_blank" rel="noopener">TMDB ↗</a>`
+  ];
+  if(personExternalIds.imdb_id){
+    sourceLinks.push(`<a class="person-source-link" href="https://www.imdb.com/name/${encodeURIComponent(personExternalIds.imdb_id)}/" target="_blank" rel="noopener">IMDb ↗</a>`);
+  }
+  if(personExternalIds.wikidata_id){
+    sourceLinks.push(`<a class="person-source-link" href="https://www.wikidata.org/wiki/${encodeURIComponent(personExternalIds.wikidata_id)}" target="_blank" rel="noopener">Wikidata ↗</a>`);
+  }
+
+  const profileHtml = `
+    <section class="person-profile">
+      ${profilePhoto
+        ? `<img class="person-profile-photo" src="${profilePhoto}" alt="${escHtml(p.name || personWorksLabel)}" loading="lazy" decoding="async">`
+        : `<div class="person-profile-photo no-photo">${currentLang==="en"?"No photo available":"Foto non disponibile"}</div>`
+      }
+      <div>
+        <h2>${escHtml(p.name || personWorksLabel)}</h2>
+        <div class="person-facts">${facts.join("")}</div>
+        <p class="person-bio">${escHtml((p.biography||"").trim() || bioFallback)}</p>
+        <div class="person-source-row">
+          <span class="person-source-label">${sourceLabel}: ${currentLang==="en"?"biographical data, photo and credits":"dati biografici, foto e filmografia"}</span>
+          ${sourceLinks.join("")}
+        </div>
+      </div>
+    </section>
+  `;
 
   const bar = `
     <div class="filters" style="margin-bottom:16px;padding:14px;">
       <div class="field">
-        <label>Tipo</label>
+        <label>${currentLang==="en"?"Type":"Tipo"}</label>
         <select id="pw-type">
-          <option value="all">Film + Serie TV</option>
-          <option value="movie">Solo film</option>
-          <option value="tv">Solo serie TV</option>
+          <option value="all">${currentLang==="en"?"Movies + TV series":"Film + Serie TV"}</option>
+          <option value="movie">${currentLang==="en"?"Movies only":"Solo film"}</option>
+          <option value="tv">${currentLang==="en"?"TV series only":"Solo serie TV"}</option>
         </select>
       </div>
       <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end;">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);font-weight:600;">
           <input type="checkbox" id="pw-hide-extras" style="width:16px;height:16px;">
-          Nascondi apparizioni non recitate (talk show, doc, ospitate)
+          ${currentLang==="en"?"Hide non-acting appearances (talk shows, docs, guest spots)":"Nascondi apparizioni non recitate (talk show, doc, ospitate)"}
         </label>
       </div>
     </div>
   `;
 
-  resultsEl.innerHTML = `
-    <p style="color:var(--muted);font-size:13px;margin:0 0 14px;">${personWorksLabel}</p>
-    ${bar}
+  resultsEl.innerHTML = profileHtml;
+
+  if(personTopWorks.length){
+    const title = document.createElement("h3");
+    title.className = "person-section-title";
+    title.textContent = mainWorksLabel;
+    resultsEl.appendChild(title);
+
+    const topRow = document.createElement("div");
+    topRow.className = "person-top-row";
+    personTopWorks.forEach(item=> topRow.appendChild(buildCard(item, item.media_type)));
+    resultsEl.appendChild(topRow);
+  }
+
+  const head = document.createElement("div");
+  head.className = "person-filmography-head";
+  head.innerHTML = `
+    <div>
+      <h3 class="person-section-title" style="margin:0 0 4px;">${filmographyLabel}</h3>
+      <div style="color:var(--muted);font-size:12px;">${escHtml(personWorksLabel)} · ${list.length} ${currentLang==="en"?"titles":"titoli"}</div>
+    </div>
   `;
+  resultsEl.appendChild(head);
+
+  const filtersWrap = document.createElement("div");
+  filtersWrap.innerHTML = bar;
+  resultsEl.appendChild(filtersWrap.firstElementChild);
+
   document.getElementById("pw-type").value = typeFilter;
   document.getElementById("pw-hide-extras").checked = hideExtras;
   document.getElementById("pw-type").addEventListener("change", renderPersonWorks);
   document.getElementById("pw-hide-extras").addEventListener("change", renderPersonWorks);
 
   if(!list.length){
-    resultsEl.innerHTML += `<div class="empty">Nessun titolo trovato con questi filtri.</div>`;
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = currentLang==="en" ? "No titles found with these filters." : "Nessun titolo trovato con questi filtri.";
+    resultsEl.appendChild(empty);
     return;
   }
+
   const grid = document.createElement("div");
   grid.className = "results-grid";
-  list.forEach(item=> grid.appendChild(buildCard(item, item.media_type)));
+  list.forEach(item=>{
+    const role = item.character || item.job || "";
+    grid.appendChild(buildCard(item, item.media_type, role ? {badge:escHtml(role)} : {}));
+  });
   resultsEl.appendChild(grid);
 }
 
 async function openPersonWorks(personId, personName, asCrew){
   switchToSearchTab();
   const resultsEl = document.getElementById("searchResults");
-  resultsEl.innerHTML = `<div class="loader"><div class="spin"></div>Ricerca in corso…</div>`;
+  resultsEl.innerHTML = `<div class="loader"><div class="spin"></div>${currentLang==="en"?"Loading profile…":"Caricamento scheda…"}</div>`;
   try{
-    const credits = await tmdb(`/person/${personId}/combined_credits`);
-    let list = asCrew ? (credits.crew||[]).filter(c=>c.department==="Directing") : (credits.cast||[]);
+    const [details, credits, externalIds] = await Promise.all([
+      tmdb(`/person/${personId}`),
+      tmdb(`/person/${personId}/combined_credits`),
+      tmdb(`/person/${personId}/external_ids`).catch(()=>({}))
+    ]);
+
+    // Se TMDB non ha la biografia tradotta in italiano, usa quella inglese.
+    let profileDetails = details;
+    if(currentLang!=="en" && !(details.biography||"").trim()){
+      try{
+        const enDetails = await tmdb(`/person/${personId}`, { language:"en-US" });
+        profileDetails = { ...details, biography: enDetails.biography || details.biography };
+      }catch(e){}
+    }
+
+    let list = asCrew
+      ? (credits.crew||[]).filter(c=>c.department==="Directing")
+      : (credits.cast||[]);
+
+    // Una sola scheda per titolo: conserva tutti i film/serie anche se privi di locandina.
     const seen = new Set();
     list = list.filter(x=>{
+      if(x.media_type!=="movie" && x.media_type!=="tv") return false;
       const k = x.media_type+"-"+x.id;
-      if(seen.has(k) || !x.poster_path) return false;
-      seen.add(k); return true;
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
     });
-    list.sort((a,b)=>(b.popularity||0)-(a.popularity||0));
 
     personWorksCache = list;
-    personWorksLabel = `${asCrew?'Regia di':'Con'} ${personName}`;
+    personProfileData = profileDetails;
+    personExternalIds = externalIds || {};
+    personWorksLabel = `${asCrew?(currentLang==="en"?"Directed by":"Regia di"):(currentLang==="en"?"With":"Con")} ${personName}`;
+
+    // "Opere principali": titoli più noti, separati dalla filmografia cronologica completa.
+    personTopWorks = list
+      .filter(x=>x.poster_path && !isPersonExtraCredit(x))
+      .slice()
+      .sort((a,b)=>{
+        const scoreA = (a.popularity||0) + (a.vote_count||0)/1000 + (a.vote_average||0);
+        const scoreB = (b.popularity||0) + (b.vote_count||0)/1000 + (b.vote_average||0);
+        return scoreB-scoreA;
+      })
+      .slice(0,6);
+
     renderPersonWorks();
   }catch(e){
-    resultsEl.innerHTML = `<div class="empty">Errore nel caricamento dei titoli.</div>`;
+    console.error("Errore scheda persona.", e);
+    resultsEl.innerHTML = `<div class="empty">${currentLang==="en"?"Error loading this person's profile.":"Errore nel caricamento della scheda della persona."}</div>`;
   }
 }
 
