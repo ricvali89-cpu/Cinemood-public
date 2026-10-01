@@ -3924,26 +3924,6 @@ document.getElementById("recViewToggle").appendChild(
   })
 );
 
-/* ---------- MODALITÀ DIAGNOSTICA: mostra i dati salvati localmente sul dispositivo ---------- */
-/* Si attiva solo aprendo il sito con ?debug=localstorage in fondo all'indirizzo.
-   Utile per recuperare dati rimasti "intrappolati" su un telefono/browser senza
-   accesso alla console sviluppatore (es. Safari su iPhone senza Mac collegato). */
-if (new URLSearchParams(location.search).get("debug") === "localstorage") {
-  const keys = Object.keys(localStorage).filter(k => k.startsWith("cinemood-data"));
-  let dump = `Trovate ${keys.length} copie locali dei dati:\n\n`;
-  keys.forEach(k => {
-    const val = localStorage.getItem(k);
-    dump += `=== ${k} (${val.length} caratteri) ===\n${val}\n\n`;
-  });
-  document.body.innerHTML = `
-    <div style="padding:20px;font-family:monospace;background:#111;color:#0f0;min-height:100vh;">
-      <h2 style="color:#fff;">Dati locali trovati su questo dispositivo</h2>
-      <p style="color:#aaa;">Seleziona tutto il testo qui sotto (tocca e tieni premuto → Seleziona tutto → Copia) e mandalo a chi ti sta aiutando.</p>
-      <textarea readonly style="width:100%;height:70vh;background:#000;color:#0f0;font-family:monospace;font-size:11px;padding:10px;border:1px solid #333;">${dump.replace(/</g,"&lt;")}</textarea>
-    </div>
-  `;
-}
-
 let processingRecovery = fbAuth.isSignInWithEmailLink(window.location.href);
 
 if(processingRecovery){
