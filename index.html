@@ -3315,6 +3315,7 @@ let personWorksLabel = "";
 let personProfileData = null;
 let personTopWorks = [];
 let personExternalIds = {};
+let personWikipediaMeta = null;
 
 function escHtml(value){
   return String(value ?? "")
@@ -3346,6 +3347,117 @@ function isPersonExtraCredit(item){
   return /^(self|narrator|host|himself|herself|themselves|guest)/.test(ch);
 }
 
+function stripHtmlText(value){
+  try{
+    const doc = new DOMParser().parseFromString(String(value||""), "text/html");
+    return (doc.body.textContent || "").trim();
+  }catch(e){
+    return String(value||"").replace(/<[^>]*>/g,"").trim();
+  }
+}
+
+async function fetchWikipediaPerson(personName, wikidataId, lang){
+  const wikiLang = lang || "it";
+  let pageTitle = "";
+
+  // 1) Percorso più affidabile: TMDB -> Wikidata -> sitelink Wikipedia nella lingua corretta.
+  if(wikidataId){
+    try{
+      const wdUrl = new URL("https://www.wikidata.org/w/api.php");
+      wdUrl.searchParams.set("action","wbgetentities");
+      wdUrl.searchParams.set("ids",wikidataId);
+      wdUrl.searchParams.set("props","sitelinks");
+      wdUrl.searchParams.set("sitefilter",wikiLang+"wiki");
+      wdUrl.searchParams.set("format","json");
+      wdUrl.searchParams.set("origin","*");
+      const wdRes = await fetch(wdUrl);
+      if(wdRes.ok){
+        const wdData = await wdRes.json();
+        pageTitle = wdData.entities?.[wikidataId]?.sitelinks?.[wikiLang+"wiki"]?.title || "";
+      }
+    }catch(e){}
+  }
+
+  // 2) Fallback: ricerca diretta su Wikipedia, utile quando TMDB non ha un ID Wikidata.
+  if(!pageTitle && personName){
+    try{
+      const searchUrl = new URL(`https://${wikiLang}.wikipedia.org/w/api.php`);
+      searchUrl.searchParams.set("action","query");
+      searchUrl.searchParams.set("list","search");
+      searchUrl.searchParams.set("srsearch",personName);
+      searchUrl.searchParams.set("srlimit","5");
+      searchUrl.searchParams.set("format","json");
+      searchUrl.searchParams.set("origin","*");
+      const searchRes = await fetch(searchUrl);
+      if(searchRes.ok){
+        const searchData = await searchRes.json();
+        const results = searchData.query?.search || [];
+        const exact = results.find(x => (x.title||"").toLowerCase() === String(personName).toLowerCase());
+        pageTitle = (exact || results[0] || {}).title || "";
+      }
+    }catch(e){}
+  }
+
+  if(!pageTitle) return null;
+
+  try{
+    const apiUrl = new URL(`https://${wikiLang}.wikipedia.org/w/api.php`);
+    apiUrl.searchParams.set("action","query");
+    apiUrl.searchParams.set("prop","extracts|pageimages|info");
+    apiUrl.searchParams.set("exintro","1");
+    apiUrl.searchParams.set("explaintext","1");
+    apiUrl.searchParams.set("piprop","name|thumbnail|original");
+    apiUrl.searchParams.set("pithumbsize","600");
+    apiUrl.searchParams.set("inprop","url");
+    apiUrl.searchParams.set("redirects","1");
+    apiUrl.searchParams.set("titles",pageTitle);
+    apiUrl.searchParams.set("format","json");
+    apiUrl.searchParams.set("origin","*");
+
+    const apiRes = await fetch(apiUrl);
+    if(!apiRes.ok) return null;
+    const apiData = await apiRes.json();
+    const page = Object.values(apiData.query?.pages || {})[0];
+    if(!page || page.missing !== undefined) return null;
+
+    let imageAttribution = null;
+    if(page.pageimage){
+      try{
+        const imageUrl = new URL(`https://${wikiLang}.wikipedia.org/w/api.php`);
+        imageUrl.searchParams.set("action","query");
+        imageUrl.searchParams.set("prop","imageinfo");
+        imageUrl.searchParams.set("iiprop","url|extmetadata");
+        imageUrl.searchParams.set("titles","File:"+page.pageimage);
+        imageUrl.searchParams.set("format","json");
+        imageUrl.searchParams.set("origin","*");
+        const imageRes = await fetch(imageUrl);
+        if(imageRes.ok){
+          const imageData = await imageRes.json();
+          const imagePage = Object.values(imageData.query?.pages || {})[0];
+          const info = imagePage?.imageinfo?.[0];
+          const meta = info?.extmetadata || {};
+          imageAttribution = {
+            artist: stripHtmlText(meta.Artist?.value || meta.Credit?.value || ""),
+            license: stripHtmlText(meta.LicenseShortName?.value || ""),
+            licenseUrl: meta.LicenseUrl?.value || "",
+            descriptionUrl: info?.descriptionurl || ""
+          };
+        }
+      }catch(e){}
+    }
+
+    return {
+      title: page.title || pageTitle,
+      extract: (page.extract || "").trim(),
+      url: page.fullurl || `https://${wikiLang}.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g,"_"))}`,
+      image: page.thumbnail?.source || page.original?.source || "",
+      imageAttribution
+    };
+  }catch(e){
+    return null;
+  }
+}
+
 function renderPersonWorks(){
   const resultsEl = document.getElementById("searchResults");
   const typeFilter = document.getElementById("pw-type")?.value || "all";
@@ -3365,8 +3477,8 @@ function renderPersonWorks(){
   });
 
   const p = personProfileData || {};
-  const profilePhoto = p.profile_path ? `${IMG}${p.profile_path}` : "";
-  const bioFallback = currentLang==="en" ? "Biography not available on TMDB." : "Biografia non disponibile su TMDB.";
+  const profilePhoto = p.profile_path ? `${IMG}${p.profile_path}` : (personWikipediaMeta?.image || "");
+  const bioFallback = currentLang==="en" ? "Biography not available." : "Biografia non disponibile.";
   const bornLabel = currentLang==="en" ? "Born" : "Nascita";
   const diedLabel = currentLang==="en" ? "Died" : "Morte";
   const deptLabel = currentLang==="en" ? "Known for" : "Attività principale";
@@ -3400,6 +3512,21 @@ function renderPersonWorks(){
   if(personExternalIds.wikidata_id){
     sourceLinks.push(`<a class="person-source-link" href="https://www.wikidata.org/wiki/${encodeURIComponent(personExternalIds.wikidata_id)}" target="_blank" rel="noopener">Wikidata ↗</a>`);
   }
+  if(personWikipediaMeta?.url){
+    sourceLinks.push(`<a class="person-source-link" href="${personWikipediaMeta.url}" target="_blank" rel="noopener">Wikipedia ↗</a>`);
+  }
+
+  const wikiBioCredit = personWikipediaMeta?.usedForBiography
+    ? `<div style="margin-top:7px;font-size:11px;color:var(--muted);">${currentLang==="en"?"Biography excerpt from Wikipedia (CC BY-SA).":"Estratto biografico da Wikipedia (CC BY-SA)."}</div>`
+    : "";
+  const wikiImageCredit = (!p.profile_path && personWikipediaMeta?.image)
+    ? `<div style="margin-top:7px;font-size:11px;color:var(--muted);">
+        ${currentLang==="en"?"Photo via Wikipedia/Wikimedia Commons":"Foto via Wikipedia/Wikimedia Commons"}
+        ${personWikipediaMeta.imageAttribution?.artist ? " · "+escHtml(personWikipediaMeta.imageAttribution.artist) : ""}
+        ${personWikipediaMeta.imageAttribution?.license ? " · "+escHtml(personWikipediaMeta.imageAttribution.license) : ""}
+        ${personWikipediaMeta.imageAttribution?.descriptionUrl ? ` · <a href="${personWikipediaMeta.imageAttribution.descriptionUrl}" target="_blank" rel="noopener" style="color:var(--gold);">${currentLang==="en"?"license/source":"licenza/fonte"} ↗</a>` : ""}
+      </div>`
+    : "";
 
   const profileHtml = `
     <section class="person-profile">
@@ -3415,6 +3542,8 @@ function renderPersonWorks(){
           <span class="person-source-label">${sourceLabel}: ${currentLang==="en"?"biographical data, photo and credits":"dati biografici, foto e filmografia"}</span>
           ${sourceLinks.join("")}
         </div>
+        ${wikiBioCredit}
+        ${wikiImageCredit}
       </div>
     </section>
   `;
@@ -3499,13 +3628,30 @@ async function openPersonWorks(personId, personName, asCrew){
       tmdb(`/person/${personId}/external_ids`).catch(()=>({}))
     ]);
 
-    // Se TMDB non ha la biografia tradotta in italiano, usa quella inglese.
+    // Se TMDB non ha la biografia nella lingua dell'app, prova prima Wikipedia
+    // attraverso Wikidata. Solo come ultima risorsa usa la biografia inglese di TMDB.
     let profileDetails = details;
-    if(currentLang!=="en" && !(details.biography||"").trim()){
-      try{
-        const enDetails = await tmdb(`/person/${personId}`, { language:"en-US" });
-        profileDetails = { ...details, biography: enDetails.biography || details.biography };
-      }catch(e){}
+    personWikipediaMeta = null;
+
+    if(!(details.biography||"").trim()){
+      const wikiLang = currentLang==="en" ? "en" : "it";
+      const wiki = await fetchWikipediaPerson(details.name || personName, externalIds?.wikidata_id, wikiLang);
+      if(wiki && wiki.extract){
+        profileDetails = { ...details, biography: wiki.extract };
+        personWikipediaMeta = { ...wiki, usedForBiography:true };
+      } else {
+        try{
+          const enDetails = await tmdb(`/person/${personId}`, { language:"en-US" });
+          profileDetails = { ...details, biography: enDetails.biography || details.biography };
+          // Anche se la biografia arriva da TMDB, Wikipedia può fornire una foto di fallback.
+          const wikiPhoto = await fetchWikipediaPerson(details.name || personName, externalIds?.wikidata_id, wikiLang);
+          if(wikiPhoto) personWikipediaMeta = { ...wikiPhoto, usedForBiography:false };
+        }catch(e){}
+      }
+    } else if(!details.profile_path){
+      const wikiLang = currentLang==="en" ? "en" : "it";
+      const wikiPhoto = await fetchWikipediaPerson(details.name || personName, externalIds?.wikidata_id, wikiLang);
+      if(wikiPhoto) personWikipediaMeta = { ...wikiPhoto, usedForBiography:false };
     }
 
     let list = asCrew
