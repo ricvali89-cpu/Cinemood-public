@@ -164,7 +164,11 @@
     if (target.closest("#openMood")) track("mood_opened");
     if (target.closest("#openRecommended")) track("recommended_opened");
     if (target.closest("#openUpcoming")) track("upcoming_opened");
+    if (target.closest("#openNews")) track("news_opened");
     if (target.closest("#openCalendar")) track("calendar_opened");
+    if (target.closest("#menuPlatformsBtn")) track("platforms_opened");
+    if (target.closest("#menuStatsBtn")) track("stats_opened");
+    if (target.closest("#enableNotificationsBtn")) track("notification_settings_opened");
 
     const moodTile = target.closest(".mood-tile");
     if (moodTile) track("mood_selected", { mood_label: safeText(moodTile.textContent, 50) });
