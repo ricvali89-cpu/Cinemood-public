@@ -1310,6 +1310,7 @@ let lastRecommendedItems = [];   // idem per Consigliati
 
 function pKey(base){ return `cinemood-${base}::${CURRENT_PROFILE}`; }
 function emptyProfileData(){ return { displayName:"", favorites:{movie:[],tv:[]}, watched:{movie:{},tv:{}}, watchedSeasons:{}, watchedEpisodes:{}, ratings:{movie:{},tv:{}} }; }
+const PROFILE_DATA_FIELDS = ["displayName","favorites","watched","watchedSeasons","watchedEpisodes","ratings"];
 
 function mergeProfileData(remoteRaw, localRaw){
   const remote = { ...emptyProfileData(), ...(remoteRaw||{}) };
@@ -1467,7 +1468,7 @@ function retryCloudStateCheck(){
       const merged = doc.exists ? mergeProfileData(doc.data(), localData) : localData;
 
       // Riconcilia prima di riabilitare le scritture, così il ritorno online non cancella dati remoti.
-      await ref.set(merged, { merge:true });
+      await ref.set(merged, { mergeFields:PROFILE_DATA_FIELDS });
       CURRENT_DISPLAY_NAME = merged.displayName || "";
       FAVORITES = merged.favorites || {movie:[],tv:[]};
       WATCHED = merged.watched || {movie:{},tv:{}};
@@ -1500,7 +1501,7 @@ async function persistAll(){
     return;
   }
   try{
-    await db.collection("profiles").doc(CURRENT_PROFILE).set(data, { merge:true });
+    await db.collection("profiles").doc(CURRENT_PROFILE).set(data, { mergeFields:PROFILE_DATA_FIELDS });
     cloudOk = true;
   }catch(e){
     console.error("Salvataggio cloud fallito, resta salvato solo sul telefono.", e);
