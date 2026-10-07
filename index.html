@@ -2229,8 +2229,9 @@ function openDetailFromRow(id, mediaType){
 }
 
 async function openDetail(id, mediaType, pushHistory=true){
+  const detailWasAlreadyOpen = detailOverlay.classList.contains("open");
   detailOverlay.classList.add("open");
-  if(pushHistory) pushModalHistoryState();
+  if(pushHistory && !detailWasAlreadyOpen) pushModalHistoryState();
   detailModal.innerHTML = `<div class="loader" style="padding:40px;justify-content:center"><div class="spin"></div>Caricamento…</div>`;
   try{
     const [details, credits, videos, recommended, watchProv, reviews, keywordsRes, externalIds] = await Promise.all([
@@ -2411,8 +2412,13 @@ async function openDetail(id, mediaType, pushHistory=true){
     detailModal.querySelectorAll(".person-link").forEach(btn=>{
       btn.addEventListener("click", ()=>{
         const pid = btn.dataset.pid, pname = btn.dataset.pname, asCrew = btn.dataset.role==="crew";
+        const hadParentOverlay = !!returnOverlayId;
         returnOverlayId = null; // qui si passa alla scheda Cerca, niente overlay da riaprire dopo
         closeDetail();
+        // Rimuove dalla cronologia gli stati modali ormai chiusi, evitando pressioni "Indietro" a vuoto.
+        if(history.state && history.state.cinemoodOverlay){
+          try{ history.go(hadParentOverlay ? -2 : -1); }catch(e){}
+        }
         openPersonWorks(pid, pname, asCrew);
       });
     });
