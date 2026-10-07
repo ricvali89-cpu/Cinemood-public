@@ -1325,6 +1325,10 @@ function setLang(lang){
     updateProtectButton();
     updateNotificationButton();
     if(document.getElementById("upcomingSubtitle")) updateUpcomingSubtitle();
+    if(typeof platformsOverlay!=="undefined" && platformsOverlay.classList.contains("open")) renderPlatformPicker();
+    if(typeof statsOverlay!=="undefined" && statsOverlay.classList.contains("open")) buildStats();
+    if(typeof newsOverlay!=="undefined" && newsOverlay.classList.contains("open")) renderNews();
+    if(typeof notificationPrefsOverlay!=="undefined" && notificationPrefsOverlay.classList.contains("open")) renderNotificationPrefs();
     buildHome(); renderFavorites();
   }
 }
@@ -1783,6 +1787,7 @@ function toggleWatched(mediaType, id){
   if(!WATCHED[mediaType][id]) delete WATCHED[mediaType][id];
   persistAll();
   refreshAllCardStates();
+  if(mediaType==="tv") buildContinueWatching();
 }
 
 function refreshAllCardStates(){
@@ -1838,7 +1843,7 @@ function buildCard(item, mediaType, opts={}){
     toggleWatched(mediaType, item.id);
   });
   card.addEventListener("click", ()=>{
-    ["moodOverlay","recOverlay","upcomingOverlay","universesOverlay","calendarOverlay"].forEach(oid=>{
+    ["moodOverlay","recOverlay","upcomingOverlay","universesOverlay","calendarOverlay","newsOverlay"].forEach(oid=>{
       const el = document.getElementById(oid);
       if(el && el.classList.contains("open")){
         returnOverlayId = oid;
@@ -1911,7 +1916,78 @@ let usedHomeShelfIds = new Set();
 
 async function buildContinueWatching(){
   const section = document.getElementById("continueSection");
-  if(section) section.hidden = true;
+  const shelf = document.getElementById("continueShelf");
+  if(!section || !shelf) return;
+
+  const progressKeys = Object.keys(WATCHED_EPISODES)
+    .filter(key=>Array.isArray(WATCHED_EPISODES[key]) && WATCHED_EPISODES[key].length)
+    .reverse();
+  const tvIds = [...new Set(progressKeys.map(key=>Number(key.split("-")[0])).filter(Boolean))]
+    .filter(id=>!isWatched("tv", id))
+    .slice(0,8);
+
+  if(!tvIds.length){
+    section.hidden = true;
+    shelf.innerHTML = "";
+    return;
+  }
+
+  section.hidden = false;
+  shelf.innerHTML = `<div class="loader"><div class="spin"></div>${currentLang==="en"?"Finding your next episodes…":"Cerco i prossimi episodi…"}</div>`;
+
+  try{
+    const rows = (await Promise.all(tvIds.map(async tvId=>{
+      try{
+        const show = await tmdb(`/tv/${tvId}`);
+        const progressedSeasons = Object.keys(WATCHED_EPISODES)
+          .filter(key=>key.startsWith(tvId+"-") && (WATCHED_EPISODES[key]||[]).length)
+          .map(key=>Number(key.split("-")[1]))
+          .filter(n=>n>0)
+          .sort((a,b)=>a-b);
+        if(!progressedSeasons.length) return null;
+
+        const seasons = (show.seasons||[])
+          .filter(s=>s.season_number>0 && s.episode_count>0)
+          .sort((a,b)=>a.season_number-b.season_number);
+        const startSeason = Math.max(...progressedSeasons);
+
+        for(const season of seasons.filter(s=>s.season_number>=startSeason)){
+          const seasonData = await tmdb(`/tv/${tvId}/season/${season.season_number}`);
+          const watched = WATCHED_EPISODES[tvId+"-"+season.season_number] || [];
+          const next = (seasonData.episodes||[]).find(ep=>ep.episode_number>0 && !watched.includes(ep.episode_number));
+          if(next){
+            return {
+              ...show,
+              media_type:"tv",
+              _nextEpisode:next,
+              _nextSeason:season.season_number
+            };
+          }
+        }
+        return null;
+      }catch(e){
+        console.warn("Continua a guardare non disponibile per", tvId, e);
+        return null;
+      }
+    }))).filter(Boolean);
+
+    if(!rows.length){
+      section.hidden = true;
+      shelf.innerHTML = "";
+      return;
+    }
+
+    shelf.innerHTML = "";
+    rows.forEach(item=>{
+      const ep = item._nextEpisode;
+      const badge = `▶ S${item._nextSeason} E${ep.episode_number}${ep.name ? " · "+ep.name : ""}`;
+      shelf.appendChild(buildCard(item, "tv", { badge }));
+    });
+  }catch(e){
+    console.error("Errore Continua a guardare.", e);
+    section.hidden = true;
+    shelf.innerHTML = "";
+  }
 }
 
 async function buildHome(){
@@ -2623,7 +2699,7 @@ const detailModal = document.getElementById("detailModal");
 // Chiude la schermata sotto (se aperta) e ricorda di riaprirla alla chiusura del dettaglio.
 // Usata da ogni punto dell'app che apre una scheda film/serie da dentro un'altra schermata.
 function openDetailFromRow(id, mediaType){
-  ["moodOverlay","recOverlay","upcomingOverlay","universesOverlay","calendarOverlay"].forEach(oid=>{
+  ["moodOverlay","recOverlay","upcomingOverlay","universesOverlay","calendarOverlay","newsOverlay"].forEach(oid=>{
     const el = document.getElementById(oid);
     if(el && el.classList.contains("open")){
       returnOverlayId = oid;
@@ -2929,6 +3005,7 @@ async function loadEpisodes(tvId, seasonNum, container){
         const nowChecked = WATCHED_EPISODES[key].includes(epNum);
         btn.classList.toggle("checked", nowChecked);
         btn.textContent = nowChecked ? "✓" : "";
+        buildContinueWatching();
       });
     });
   }catch(e){
@@ -3777,6 +3854,346 @@ document.getElementById("universesBack").addEventListener("click", ()=>{
   document.getElementById("universesList").hidden = false;
 });
 
+/* ================= PERSONALIZZAZIONE / NEWS / STATISTICHE ================= */
+const platformsOverlay = document.getElementById("platformsOverlay");
+const statsOverlay = document.getElementById("statsOverlay");
+const newsOverlay = document.getElementById("newsOverlay");
+const notificationPrefsOverlay = document.getElementById("notificationPrefsOverlay");
+let newsActiveFilter = "all";
+let lastNewsItems = [];
+let platformHomeRefreshTimer = null;
+
+function openFeatureOverlay(overlay){
+  overlay.classList.add("open");
+  pushModalHistoryState();
+}
+function renderPlatformPicker(){
+  const grid = document.getElementById("platformPicker");
+  const note = document.getElementById("platformPickerNote");
+  if(!grid) return;
+  grid.innerHTML = "";
+  PLATFORMS.forEach(p=>{
+    const selected = MY_PLATFORMS.includes(p.id);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "platform-pick" + (selected?" active":"");
+    btn.innerHTML = `${p.logo?`<img src="${p.logo}" alt="">`:`<span style="width:28px;height:28px;border-radius:7px;background:${p.color};display:block;"></span>`}<span>${escHtml(p.name)}</span><span class="platform-pick-check">${selected?"✓":""}</span>`;
+    btn.addEventListener("click", ()=>{
+      if(selected) MY_PLATFORMS = MY_PLATFORMS.filter(id=>id!==p.id);
+      else MY_PLATFORMS = [...MY_PLATFORMS, p.id];
+      persistAll();
+      renderPlatformPicker();
+      buildMoodGrid();
+      clearTimeout(platformHomeRefreshTimer);
+      platformHomeRefreshTimer = setTimeout(()=>buildHome(), 350);
+    });
+    grid.appendChild(btn);
+  });
+  if(note){
+    note.textContent = MY_PLATFORMS.length
+      ? (currentLang==="en" ? `${MY_PLATFORMS.length} selected · highlighted first across CineMood.` : `${MY_PLATFORMS.length} selezionate · vengono messe in evidenza per prime in CineMood.`)
+      : (currentLang==="en" ? "No selection: CineMood shows all platforms equally." : "Nessuna selezione: CineMood mostra tutte le piattaforme allo stesso modo.");
+  }
+}
+document.getElementById("menuPlatformsBtn").addEventListener("click", ()=>{
+  document.getElementById("profileMenu").hidden = true;
+  renderPlatformPicker();
+  openFeatureOverlay(platformsOverlay);
+});
+document.getElementById("platformsClose").addEventListener("click", ()=>closeOverlayViaHistory(platformsOverlay));
+platformsOverlay.addEventListener("click", e=>{ if(e.target===platformsOverlay) closeOverlayViaHistory(platformsOverlay); });
+
+function buildStats(){
+  const body = document.getElementById("statsBody");
+  const movies = Object.keys(WATCHED.movie||{}).length;
+  const shows = Object.keys(WATCHED.tv||{}).length;
+  const episodes = Object.values(WATCHED_EPISODES||{}).reduce((sum,list)=>sum+(Array.isArray(list)?new Set(list).size:0),0);
+  const seasons = Object.values(WATCHED_SEASONS||{}).reduce((sum,list)=>sum+(Array.isArray(list)?new Set(list).size:0),0);
+  const favorites = (FAVORITES.movie||[]).length + (FAVORITES.tv||[]).length;
+  const ratingValues = [
+    ...Object.values(RATINGS.movie||{}),
+    ...Object.values(RATINGS.tv||{})
+  ].map(Number).filter(n=>Number.isFinite(n) && n>0);
+  const avgRating = ratingValues.length ? (ratingValues.reduce((a,b)=>a+b,0)/ratingValues.length).toFixed(1) : "—";
+
+  const genreCounts = {};
+  [...(FAVORITES.movie||[]).map(x=>({...x,_mt:"movie"})), ...(FAVORITES.tv||[]).map(x=>({...x,_mt:"tv"}))]
+    .forEach(item=>(item.genre_ids||[]).forEach(id=>{
+      const name = GENRES[item._mt]?.[id] || null;
+      if(name) genreCounts[name]=(genreCounts[name]||0)+1;
+    }));
+  const topGenres = Object.entries(genreCounts).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+  body.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><strong>${movies}</strong><span>${currentLang==="en"?"Movies watched":"Film visti"}</span></div>
+      <div class="stat-card"><strong>${shows}</strong><span>${currentLang==="en"?"TV shows watched":"Serie viste"}</span></div>
+      <div class="stat-card"><strong>${episodes}</strong><span>${currentLang==="en"?"Episodes marked":"Episodi segnati"}</span></div>
+      <div class="stat-card"><strong>${seasons}</strong><span>${currentLang==="en"?"Seasons completed":"Stagioni completate"}</span></div>
+      <div class="stat-card"><strong>${favorites}</strong><span>${currentLang==="en"?"Favorites":"Preferiti"}</span></div>
+      <div class="stat-card"><strong>${avgRating}</strong><span>${currentLang==="en"?"Average personal rating":"Voto personale medio"}</span></div>
+    </div>
+    <div class="stats-highlight">
+      <strong style="color:var(--gold);">${currentLang==="en"?"Your favorite genres":"I tuoi generi preferiti"}</strong>
+      <p style="margin:8px 0 0;color:var(--text);font-size:13px;">${topGenres.length ? topGenres.map(([name,count])=>`${escHtml(name)} · ${count}`).join(" &nbsp;•&nbsp; ") : (currentLang==="en"?"Add favorites to build this stat.":"Aggiungi preferiti per costruire questa statistica.")}</p>
+    </div>
+    <p style="color:var(--muted);font-size:11.5px;margin-top:16px;">${currentLang==="en"?"Statistics are calculated only from data you've actually saved in CineMood.":"Le statistiche sono calcolate solo sui dati che hai realmente salvato in CineMood."}</p>
+  `;
+}
+document.getElementById("menuStatsBtn").addEventListener("click", ()=>{
+  document.getElementById("profileMenu").hidden = true;
+  buildStats();
+  openFeatureOverlay(statsOverlay);
+});
+document.getElementById("statsClose").addEventListener("click", ()=>closeOverlayViaHistory(statsOverlay));
+statsOverlay.addEventListener("click", e=>{ if(e.target===statsOverlay) closeOverlayViaHistory(statsOverlay); });
+
+function newsImage(item){
+  const path = item.backdrop_path || item.poster_path;
+  return path ? IMG+path : null;
+}
+function renderNews(){
+  const el = document.getElementById("newsResults");
+  const list = newsActiveFilter==="all" ? lastNewsItems : lastNewsItems.filter(x=>x.category===newsActiveFilter);
+  el.innerHTML = "";
+  if(!list.length){
+    el.innerHTML = `<div class="empty">${currentLang==="en"?"No updates in this category right now.":"Nessuna novità in questa categoria al momento."}</div>`;
+    return;
+  }
+  list.forEach(n=>{
+    const row = document.createElement("article");
+    row.className = "news-item";
+    row.tabIndex = 0;
+    row.setAttribute("role","button");
+    const image = newsImage(n.item);
+    row.innerHTML = `
+      ${image?`<img loading="lazy" decoding="async" src="${image}" alt="">`:`<div style="width:100%;min-height:105px;background:var(--surface);"></div>`}
+      <div class="news-item-body">
+        <div class="news-item-kicker">${escHtml(n.kicker)}</div>
+        <h4>${escHtml(n.headline)}</h4>
+        <p>${escHtml(n.summary||"")}</p>
+        <div class="news-item-meta">TMDB · ${escHtml(n.meta||"CineMood")}</div>
+      </div>
+    `;
+    const open = ()=>{
+      if(n.youtubeKey) window.open(`https://www.youtube.com/watch?v=${encodeURIComponent(n.youtubeKey)}`, "_blank", "noopener");
+      else if(n.item?.id && n.mediaType) openDetailFromRow(n.item.id, n.mediaType);
+    };
+    row.addEventListener("click", open);
+    row.addEventListener("keydown", e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();open();} });
+    el.appendChild(row);
+  });
+}
+
+async function buildNews(){
+  const el = document.getElementById("newsResults");
+  el.innerHTML = `<div class="loader"><div class="spin"></div>${currentLang==="en"?"Updating CineMood news…":"Aggiorno le novità CineMood…"}</div>`;
+  try{
+    const [trending, nowPlaying, upcoming] = await Promise.all([
+      tmdb("/trending/all/day"),
+      tmdb("/movie/now_playing", {region:REGION, page:1}),
+      tmdb("/movie/upcoming", {region:REGION, page:1})
+    ]);
+    const items = [];
+    const seen = new Set();
+    const add = entry=>{
+      const key = `${entry.category}|${entry.mediaType||""}|${entry.item?.id||entry.youtubeKey||entry.headline}`;
+      if(seen.has(key)) return;
+      seen.add(key);
+      items.push(entry);
+    };
+
+    (trending.results||[])
+      .filter(x=>x.media_type==="movie"||x.media_type==="tv")
+      .slice(0,6)
+      .forEach(item=>{
+        const title=item.title||item.name||"";
+        add({
+          category:item.media_type, mediaType:item.media_type, item,
+          kicker:currentLang==="en"?"Trending today":"Trend di oggi",
+          headline:currentLang==="en" ? `${title} is among today's most followed titles` : `${title} è tra i titoli più seguiti di oggi`,
+          summary:currentLang==="en"?"A title gaining attention across the TMDB community.":"Un titolo che sta guadagnando attenzione nella community TMDB.",
+          meta:currentLang==="en"?"Updated today":"Aggiornato oggi"
+        });
+      });
+
+    (nowPlaying.results||[]).filter(x=>x.poster_path||x.backdrop_path).slice(0,4).forEach(item=>{
+      const title=item.title||"";
+      add({
+        category:"movie", mediaType:"movie", item,
+        kicker:currentLang==="en"?"In theaters":"Al cinema",
+        headline:currentLang==="en" ? `${title} is now in Italian theaters` : `${title} è ora al cinema in Italia`,
+        summary:item.overview||"",
+        meta:item.release_date ? formatShortDate(item.release_date) : (currentLang==="en"?"Now":"Ora")
+      });
+    });
+
+    const todayIso = new Date().toISOString().slice(0,10);
+    (upcoming.results||[])
+      .filter(x=>x.release_date && x.release_date>=todayIso)
+      .sort((a,b)=>a.release_date.localeCompare(b.release_date))
+      .slice(0,4)
+      .forEach(item=>{
+        const title=item.title||"";
+        add({
+          category:"movie", mediaType:"movie", item,
+          kicker:currentLang==="en"?"Coming soon":"Prossimamente",
+          headline:currentLang==="en" ? `${title} is coming to theaters` : `${title} arriva al cinema`,
+          summary:item.overview||"",
+          meta:formatShortDate(item.release_date)
+        });
+      });
+
+    const favTv = (FAVORITES.tv||[]).slice(0,12);
+    const favDetails = await Promise.all(favTv.map(show=>tmdb(`/tv/${show.id}`).catch(()=>null)));
+    favDetails.filter(Boolean).forEach((d,i)=>{
+      const ep=d.next_episode_to_air;
+      if(!ep?.air_date) return;
+      const show=favTv[i];
+      add({
+        category:"tv", mediaType:"tv", item:{...show, backdrop_path:d.backdrop_path||show.backdrop_path, poster_path:d.poster_path||show.poster_path},
+        kicker:currentLang==="en"?"Next episode":"Prossimo episodio",
+        headline:currentLang==="en"
+          ? `${show.title||d.name}: S${ep.season_number} E${ep.episode_number} is coming`
+          : `${show.title||d.name}: arriva S${ep.season_number} E${ep.episode_number}`,
+        summary:ep.name||"",
+        meta:formatShortDate(ep.air_date)
+      });
+    });
+
+    const trailerSeeds = (trending.results||[]).filter(x=>x.media_type==="movie"||x.media_type==="tv").slice(0,8);
+    const trailerData = await Promise.all(trailerSeeds.map(async item=>{
+      try{
+        const v=await tmdb(`/${item.media_type}/${item.id}/videos`);
+        const trailer=(v.results||[]).find(x=>x.site==="YouTube" && x.type==="Trailer" && x.official) ||
+                      (v.results||[]).find(x=>x.site==="YouTube" && x.type==="Trailer");
+        return trailer ? {item,trailer} : null;
+      }catch(e){ return null; }
+    }));
+    trailerData.filter(Boolean).slice(0,3).forEach(({item,trailer})=>{
+      const title=item.title||item.name||"";
+      add({
+        category:"trailer", mediaType:item.media_type, item,
+        youtubeKey:trailer.key,
+        kicker:"Trailer",
+        headline:currentLang==="en" ? `Watch the trailer for ${title}` : `Guarda il trailer di ${title}`,
+        summary:trailer.name||"",
+        meta:"YouTube via TMDB"
+      });
+    });
+
+    lastNewsItems = items.slice(0,22);
+    renderNews();
+  }catch(e){
+    console.error("News CineMood non disponibili.", e);
+    el.innerHTML = `<div class="empty">${currentLang==="en"?"News are temporarily unavailable.":"Le novità non sono disponibili al momento."}</div>`;
+  }
+}
+
+document.getElementById("openNews").addEventListener("click", ()=>{
+  newsActiveFilter="all";
+  document.querySelectorAll("#newsFilters [data-news-filter]").forEach(b=>b.classList.toggle("active",b.dataset.newsFilter==="all"));
+  openFeatureOverlay(newsOverlay);
+  buildNews();
+});
+document.getElementById("newsClose").addEventListener("click", ()=>closeOverlayViaHistory(newsOverlay));
+newsOverlay.addEventListener("click", e=>{ if(e.target===newsOverlay) closeOverlayViaHistory(newsOverlay); });
+document.querySelectorAll("#newsFilters [data-news-filter]").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll("#newsFilters [data-news-filter]").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    newsActiveFilter=btn.dataset.newsFilter;
+    renderNews();
+  });
+});
+
+function renderNotificationPrefs(){
+  document.getElementById("notifyEpisodes").checked = !!NOTIFICATION_PREFS.episodes;
+  document.getElementById("notifyStreaming").checked = !!NOTIFICATION_PREFS.streaming;
+  document.getElementById("notifyNews").checked = !!NOTIFICATION_PREFS.news;
+}
+function openNotificationPrefs(){
+  renderNotificationPrefs();
+  openFeatureOverlay(notificationPrefsOverlay);
+}
+document.getElementById("notificationPrefsClose").addEventListener("click", ()=>closeOverlayViaHistory(notificationPrefsOverlay));
+notificationPrefsOverlay.addEventListener("click", e=>{ if(e.target===notificationPrefsOverlay) closeOverlayViaHistory(notificationPrefsOverlay); });
+["notifyEpisodes","notifyStreaming","notifyNews"].forEach(id=>{
+  document.getElementById(id).addEventListener("change", ()=>{
+    NOTIFICATION_PREFS = {
+      episodes:document.getElementById("notifyEpisodes").checked,
+      streaming:document.getElementById("notifyStreaming").checked,
+      news:document.getElementById("notifyNews").checked
+    };
+    persistAll();
+  });
+});
+
+function smartNotificationAlreadySent(tag){
+  try{return localStorage.getItem(heroProfileKey("cinemood-smart-notify-"+tag))===heroDayKey();}catch(e){return false;}
+}
+function markSmartNotificationSent(tag){
+  try{localStorage.setItem(heroProfileKey("cinemood-smart-notify-"+tag),heroDayKey());}catch(e){}
+}
+async function showSmartNotification(tag,title,body,data={}){
+  if(smartNotificationAlreadySent(tag) || !("Notification" in window) || Notification.permission!=="granted" || !("serviceWorker" in navigator)) return;
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    await reg.showNotification(title,{body,icon:"/icon-192.png",tag:"cinemood-"+tag,data});
+    markSmartNotificationSent(tag);
+  }catch(e){console.warn("Notifica locale non disponibile.",e);}
+}
+async function runSmartNotificationCheck(){
+  if(!("Notification" in window) || Notification.permission!=="granted") return;
+  try{
+    if(NOTIFICATION_PREFS.episodes && FAVORITES.tv.length){
+      const shows=FAVORITES.tv.slice(0,20);
+      const details=await Promise.all(shows.map(s=>tmdb(`/tv/${s.id}`).catch(()=>null)));
+      const today=heroDayKey();
+      const tomorrow=heroDayKey(new Date(Date.now()+86400000));
+      const due=[];
+      details.forEach((d,i)=>{
+        const ep=d?.next_episode_to_air;
+        if(ep?.air_date===today || ep?.air_date===tomorrow){
+          due.push({show:shows[i],ep});
+        }
+      });
+      if(due.length){
+        const first=due[0];
+        const when=first.ep.air_date===today ? (currentLang==="en"?"today":"oggi") : (currentLang==="en"?"tomorrow":"domani");
+        await showSmartNotification(
+          "episodes",
+          currentLang==="en"?"📺 New episodes":"📺 Nuovi episodi",
+          currentLang==="en"
+            ? `${first.show.title}: S${first.ep.season_number} E${first.ep.episode_number} ${when}${due.length>1?` · +${due.length-1} more`:""}`
+            : `${first.show.title}: S${first.ep.season_number} E${first.ep.episode_number} ${when}${due.length>1?` · +${due.length-1} altri`:""}`,
+          {tvId:String(first.show.id),type:"episode"}
+        );
+      }
+    }
+
+    if(NOTIFICATION_PREFS.streaming && typeof CURATED_STREAMING!=="undefined"){
+      const monthName=ITA_MONTHS[new Date().getMonth()];
+      const currentMonthLabel = `${monthName.charAt(0).toUpperCase()+monthName.slice(1)} ${new Date().getFullYear()}`;
+      if(CURATED_STREAMING_MONTH===currentMonthLabel){
+        const dateLabel=`${new Date().getDate()} ${ITA_MONTHS_SHORT[new Date().getMonth()]}`;
+        const selectedNames=new Set(PLATFORMS.filter(p=>!MY_PLATFORMS.length||MY_PLATFORMS.includes(p.id)).map(p=>p.name));
+        const todayEntries=CURATED_STREAMING.filter(e=>e.date.toLowerCase()===dateLabel.toLowerCase() && selectedNames.has(e.platform));
+        if(todayEntries.length){
+          await showSmartNotification(
+            "streaming",
+            currentLang==="en"?"🍿 New streaming releases":"🍿 Nuove uscite streaming",
+            currentLang==="en"
+              ? `${todayEntries.length} new title${todayEntries.length===1?"":"s"} today on your platforms.`
+              : `${todayEntries.length} nuov${todayEntries.length===1?"o titolo":"i titoli"} oggi sulle tue piattaforme.`,
+            {type:"streaming"}
+          );
+        }
+      }
+    }
+  }catch(e){ console.warn("Controllo notifiche intelligenti non riuscito.",e); }
+}
+
 /* ================= CALENDARIO EPISODI ================= */
 const calendarOverlay = document.getElementById("calendarOverlay");
 document.getElementById("openCalendar").addEventListener("click", ()=>{
@@ -4457,6 +4874,7 @@ async function bootProfile(uid){
   buildHome();
   await loadGenres();
   updateProtectButton();
+  runSmartNotificationCheck();
 
   const openParam = new URLSearchParams(location.search).get("open");
   if(openParam){
@@ -4639,8 +5057,8 @@ function updateNotificationButton(){
 
   btn.hidden = false;
   if(Notification.permission === "granted"){
-    btn.textContent = currentLang==="en" ? "✅ Notifications enabled" : "✅ Notifiche attive";
-    btn.disabled = true;
+    btn.textContent = currentLang==="en" ? "🔔 Notification preferences" : "🔔 Preferenze notifiche";
+    btn.disabled = false;
   }else if(Notification.permission === "denied"){
     btn.textContent = currentLang==="en" ? "🔕 Notifications blocked in browser settings" : "🔕 Notifiche bloccate nelle impostazioni";
     btn.disabled = true;
@@ -4683,11 +5101,20 @@ function updateProtectButton(){
 }
 
 document.getElementById("enableNotificationsBtn").addEventListener("click", async ()=>{
+  document.getElementById("profileMenu").hidden = true;
+  if(Notification.permission==="granted"){
+    openNotificationPrefs();
+    return;
+  }
   const btn = document.getElementById("enableNotificationsBtn");
   btn.disabled = true;
   const ok = await registerForPushNotifications(true);
   updateNotificationButton();
-  if(ok) toast(currentLang==="en" ? "Notifications enabled" : "Notifiche attivate");
+  if(ok){
+    toast(currentLang==="en" ? "Notifications enabled" : "Notifiche attivate");
+    openNotificationPrefs();
+    runSmartNotificationCheck();
+  }
 });
 
 document.getElementById("linkGoogleBtn").addEventListener("click", ()=>{
@@ -4801,7 +5228,7 @@ document.getElementById("recoverProfileBtn").addEventListener("click", ()=>{
 document.addEventListener("keydown", (e)=>{
   if(e.key!=="Escape") return;
   if(detailOverlay.classList.contains("open")){ closeDetailViaHistory(); return; }
-  const overlayIds = ["moodOverlay","recOverlay","upcomingOverlay","calendarOverlay","universesOverlay"];
+  const overlayIds = ["moodOverlay","recOverlay","upcomingOverlay","calendarOverlay","universesOverlay","newsOverlay","platformsOverlay","statsOverlay","notificationPrefsOverlay"];
   for(const oid of overlayIds){
     const el = document.getElementById(oid);
     if(el && el.classList.contains("open")){ closeOverlayViaHistory(el); return; }
@@ -4821,7 +5248,7 @@ function closeOverlayViaHistory(el){
 }
 window.addEventListener("popstate", ()=>{
   if(detailOverlay.classList.contains("open")){ closeDetail(); return; }
-  const overlayIds = ["moodOverlay","recOverlay","upcomingOverlay","calendarOverlay","universesOverlay"];
+  const overlayIds = ["moodOverlay","recOverlay","upcomingOverlay","calendarOverlay","universesOverlay","newsOverlay","platformsOverlay","statsOverlay","notificationPrefsOverlay"];
   for(const oid of overlayIds){
     const el = document.getElementById(oid);
     if(el && el.classList.contains("open")){ el.classList.remove("open"); return; }
