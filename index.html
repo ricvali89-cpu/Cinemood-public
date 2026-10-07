@@ -1206,24 +1206,25 @@ function platformLogoTag(platform){
 }
 
 const MOODS = [
-  { key:"relax",    labelIt:"Rilassato",   labelEn:"Relaxed",    emoji:"😌", genre:35 },
-  { key:"hype",     labelIt:"Carico",      labelEn:"Hyped",      emoji:"🔥", genre:28 },
-  { key:"malinc",   labelIt:"Malinconico", labelEn:"Melancholic",emoji:"🌧️", genre:18 },
-  { key:"avv",      labelIt:"Avventuroso", labelEn:"Adventurous",emoji:"🧭", genre:12 },
-  { key:"rom",      labelIt:"Romantico",   labelEn:"Romantic",   emoji:"💛", genre:10749 },
-  { key:"music",    labelIt:"Voglia di musica", labelEn:"In the mood for music", emoji:"🎵", genre:10402 },
-  { key:"crime",    labelIt:"Crime",         labelEn:"Crime",         emoji:"🕴️", genre:80 },
-  { key:"storico",  labelIt:"Storico",       labelEn:"Historical",    emoji:"📜", genre:36 },
-  { key:"anim",     labelIt:"Animazione",    labelEn:"Animation",     emoji:"🎨", genre:16 },
-  { key:"west",     labelIt:"Voglia di west", labelEn:"In the mood for western", emoji:"🤠", genre:37 },
-  { key:"tesa",     labelIt:"Col fiato sospeso", labelEn:"On the edge of your seat", emoji:"😬", genre:53 },
-  { key:"nost",     labelIt:"Nostalgico",  labelEn:"Nostalgic",  emoji:"📼", genre:14 },
-  { key:"motiv",    labelIt:"Motivato",    labelEn:"Motivated",  emoji:"💪", genre:99 },
-  { key:"pensier",  labelIt:"Contemplativo", labelEn:"Contemplative", emoji:"🌌", genre:878 },
-  { key:"horror",   labelIt:"Spaventato",   labelEn:"Scared",      emoji:"😱", genre:27 },
-  { key:"guerra",   labelIt:"Drammatico/Guerra", labelEn:"War & Drama", emoji:"🎖️", genre:10752 },
-  { key:"invest",   labelIt:"Investigativo", labelEn:"Investigative", emoji:"🕵️", genre:9648 },
-  { key:"family",   labelIt:"In famiglia",  labelEn:"Family time", emoji:"👨‍👩‍👧‍👦", genre:10751 },
+  // TMDB usa tassonomie diverse per film e serie TV: gli ID vanno tenuti separati.
+  { key:"relax",    labelIt:"Rilassato",   labelEn:"Relaxed",    emoji:"😌", movieGenre:35,    tvGenre:35 },
+  { key:"hype",     labelIt:"Carico",      labelEn:"Hyped",      emoji:"🔥", movieGenre:28,    tvGenre:10759 },
+  { key:"malinc",   labelIt:"Malinconico", labelEn:"Melancholic",emoji:"🌧️", movieGenre:18,    tvGenre:18 },
+  { key:"avv",      labelIt:"Avventuroso", labelEn:"Adventurous",emoji:"🧭", movieGenre:12,    tvGenre:10759 },
+  { key:"rom",      labelIt:"Romantico",   labelEn:"Romantic",   emoji:"💛", movieGenre:10749, tvGenre:18 },
+  { key:"music",    labelIt:"Voglia di musica", labelEn:"In the mood for music", emoji:"🎵", movieGenre:10402, tvGenre:18 },
+  { key:"crime",    labelIt:"Crime",         labelEn:"Crime",         emoji:"🕴️", movieGenre:80,    tvGenre:80 },
+  { key:"storico",  labelIt:"Storico",       labelEn:"Historical",    emoji:"📜", movieGenre:36,    tvGenre:18 },
+  { key:"anim",     labelIt:"Animazione",    labelEn:"Animation",     emoji:"🎨", movieGenre:16,    tvGenre:16 },
+  { key:"west",     labelIt:"Voglia di west", labelEn:"In the mood for western", emoji:"🤠", movieGenre:37, tvGenre:37 },
+  { key:"tesa",     labelIt:"Col fiato sospeso", labelEn:"On the edge of your seat", emoji:"😬", movieGenre:53, tvGenre:9648 },
+  { key:"nost",     labelIt:"Nostalgico",  labelEn:"Nostalgic",  emoji:"📼", movieGenre:14,    tvGenre:10765 },
+  { key:"motiv",    labelIt:"Motivato",    labelEn:"Motivated",  emoji:"💪", movieGenre:99,    tvGenre:99 },
+  { key:"pensier",  labelIt:"Contemplativo", labelEn:"Contemplative", emoji:"🌌", movieGenre:878, tvGenre:10765 },
+  { key:"horror",   labelIt:"Spaventato",   labelEn:"Scared",      emoji:"😱", movieGenre:27,    tvGenre:9648 },
+  { key:"guerra",   labelIt:"Drammatico/Guerra", labelEn:"War & Drama", emoji:"🎖️", movieGenre:10752, tvGenre:10768 },
+  { key:"invest",   labelIt:"Investigativo", labelEn:"Investigative", emoji:"🕵️", movieGenre:9648,  tvGenre:9648 },
+  { key:"family",   labelIt:"In famiglia",  labelEn:"Family time", emoji:"👨‍👩‍👧‍👦", movieGenre:10751, tvGenre:10751 },
 ];
 function moodLabel(m){ return currentLang==="en" ? m.labelEn : m.labelIt; }
 
@@ -2225,9 +2226,9 @@ function openDetailFromRow(id, mediaType){
   openDetail(id, mediaType);
 }
 
-async function openDetail(id, mediaType){
+async function openDetail(id, mediaType, pushHistory=true){
   detailOverlay.classList.add("open");
-  pushModalHistoryState();
+  if(pushHistory) pushModalHistoryState();
   detailModal.innerHTML = `<div class="loader" style="padding:40px;justify-content:center"><div class="spin"></div>Caricamento…</div>`;
   try{
     const [details, credits, videos, recommended, watchProv, reviews, keywordsRes, externalIds] = await Promise.all([
@@ -2404,7 +2405,7 @@ async function openDetail(id, mediaType){
       related.forEach(r=> shelf.appendChild(buildCard(r, mediaType)));
     }
 
-    document.getElementById("detailClose").addEventListener("click", closeDetail);
+    document.getElementById("detailClose").addEventListener("click", closeDetailViaHistory);
     detailModal.querySelectorAll(".person-link").forEach(btn=>{
       btn.addEventListener("click", ()=>{
         const pid = btn.dataset.pid, pname = btn.dataset.pname, asCrew = btn.dataset.role==="crew";
@@ -2418,11 +2419,11 @@ async function openDetail(id, mediaType){
         id, title, poster_path:details.poster_path, vote_average:details.vote_average,
         genre_ids:(details.genres||[]).map(g=>g.id), media_type:mediaType
       }, mediaType);
-      openDetail(id, mediaType);
+      openDetail(id, mediaType, false);
     });
     document.getElementById("detailWatched").addEventListener("click", ()=>{
       toggleWatched(mediaType, id);
-      openDetail(id, mediaType);
+      openDetail(id, mediaType, false);
     });
     document.getElementById("detailShare").addEventListener("click", async ()=>{
       const shareUrl = `${location.origin}${location.pathname}?open=${mediaType}-${id}`;
@@ -2464,7 +2465,7 @@ async function openDetail(id, mediaType){
     });
   }catch(e){
     detailModal.innerHTML = `<div style="padding:30px"><button class="modal-close" id="detailClose">✕</button><div class="empty">Impossibile caricare i dettagli.</div></div>`;
-    document.getElementById("detailClose").addEventListener("click", closeDetail);
+    document.getElementById("detailClose").addEventListener("click", closeDetailViaHistory);
   }
 }
 function closeDetail(){
@@ -2475,7 +2476,11 @@ function closeDetail(){
     document.getElementById(id).classList.add("open");
   }
 }
-detailOverlay.addEventListener("click", e=>{ if(e.target===detailOverlay) closeDetail(); });
+function closeDetailViaHistory(){
+  if(history.state && history.state.cinemoodOverlay) history.back();
+  else closeDetail();
+}
+detailOverlay.addEventListener("click", e=>{ if(e.target===detailOverlay) closeDetailViaHistory(); });
 
 async function loadEpisodes(tvId, seasonNum, container){
   container.innerHTML = `<div class="loader" style="padding:10px 0;"><div class="spin"></div>Carico episodi…</div>`;
@@ -2582,8 +2587,8 @@ document.getElementById("openMood").addEventListener("click", ()=>{
   moodOverlay.classList.add("open");
   pushModalHistoryState();
 });
-document.getElementById("moodClose").addEventListener("click", ()=> moodOverlay.classList.remove("open"));
-moodOverlay.addEventListener("click", e=>{ if(e.target===moodOverlay) moodOverlay.classList.remove("open"); });
+document.getElementById("moodClose").addEventListener("click", ()=> closeOverlayViaHistory(moodOverlay));
+moodOverlay.addEventListener("click", e=>{ if(e.target===moodOverlay) closeOverlayViaHistory(moodOverlay); });
 
 document.getElementById("matchModeToggle").addEventListener("change", (e)=>{
   const on = e.target.checked;
@@ -2621,7 +2626,7 @@ function buildMoodGrid(){
 }
 
 document.getElementById("moodHomeBtn").addEventListener("click", ()=>{
-  moodOverlay.classList.remove("open");
+  closeOverlayViaHistory(moodOverlay);
   document.querySelectorAll(".nav [data-view]").forEach(b=>b.classList.remove("active"));
   document.querySelector('.nav [data-view="home"]').classList.add("active");
   document.querySelectorAll(".view").forEach(v=>v.hidden = true);
@@ -2660,11 +2665,11 @@ async function runMoodSearch(){
     return p;
   };
 
-  async function fetchCombined(genreExpr){
+  async function fetchCombined(movieGenreExpr, tvGenreExpr){
     const pages = [1,2,3];
     const [movieResults, tvResults] = await Promise.all([
-      Promise.all(pages.map(pg => tmdb("/discover/movie", {...baseParams("movie", genreExpr), page:pg}))),
-      Promise.all(pages.map(pg => tmdb("/discover/tv", {...baseParams("tv", genreExpr), page:pg}))),
+      Promise.all(pages.map(pg => tmdb("/discover/movie", {...baseParams("movie", movieGenreExpr), page:pg}))),
+      Promise.all(pages.map(pg => tmdb("/discover/tv", {...baseParams("tv", tvGenreExpr), page:pg}))),
     ]);
     let combined = [
       ...movieResults.flatMap(r=>r.results||[]).map(x=>({...x, media_type:"movie"})),
@@ -2684,13 +2689,19 @@ async function runMoodSearch(){
     let usedFallback = false;
 
     if(matchMode){
-      combined = await fetchCombined(`${mood.genre},${mood2.genre}`); // AND: soddisfa entrambi i mood
+      combined = await fetchCombined(
+        `${mood.movieGenre},${mood2.movieGenre}`,
+        `${mood.tvGenre},${mood2.tvGenre}`
+      ); // AND: soddisfa entrambi i mood con la tassonomia corretta per film e TV
       if(!combined.length){
         usedFallback = true;
-        combined = await fetchCombined(`${mood.genre}|${mood2.genre}`); // OR: compromesso più ampio
+        combined = await fetchCombined(
+          `${mood.movieGenre}|${mood2.movieGenre}`,
+          `${mood.tvGenre}|${mood2.tvGenre}`
+        ); // OR: compromesso più ampio
       }
     } else {
-      combined = await fetchCombined(mood.genre);
+      combined = await fetchCombined(mood.movieGenre, mood.tvGenre);
     }
 
     if(sort==="vote_average.desc") combined.sort((a,b)=>(b.vote_average||0)-(a.vote_average||0));
@@ -2726,8 +2737,8 @@ document.getElementById("openRecommended").addEventListener("click", ()=>{
   pushModalHistoryState();
   buildRecommendations();
 });
-document.getElementById("recClose").addEventListener("click", ()=> recOverlay.classList.remove("open"));
-recOverlay.addEventListener("click", e=>{ if(e.target===recOverlay) recOverlay.classList.remove("open"); });
+document.getElementById("recClose").addEventListener("click", ()=> closeOverlayViaHistory(recOverlay));
+recOverlay.addEventListener("click", e=>{ if(e.target===recOverlay) closeOverlayViaHistory(recOverlay); });
 
 function shuffleArray(arr){
   const a = arr.slice();
@@ -2792,8 +2803,8 @@ document.getElementById("openUpcoming").addEventListener("click", ()=>{
   pushModalHistoryState();
   buildUpcoming();
 });
-document.getElementById("upcomingClose").addEventListener("click", ()=> upcomingOverlay.classList.remove("open"));
-upcomingOverlay.addEventListener("click", e=>{ if(e.target===upcomingOverlay) upcomingOverlay.classList.remove("open"); });
+document.getElementById("upcomingClose").addEventListener("click", ()=> closeOverlayViaHistory(upcomingOverlay));
+upcomingOverlay.addEventListener("click", e=>{ if(e.target===upcomingOverlay) closeOverlayViaHistory(upcomingOverlay); });
 
 function formatShortDate(dateStr){
   if(!dateStr) return "";
@@ -3309,10 +3320,10 @@ document.getElementById("universesClose").addEventListener("click", ()=>{
     document.getElementById("universesDetail").hidden = true;
     document.getElementById("universesList").hidden = false;
   } else {
-    universesOverlay.classList.remove("open");
+    closeOverlayViaHistory(universesOverlay);
   }
 });
-universesOverlay.addEventListener("click", e=>{ if(e.target===universesOverlay) universesOverlay.classList.remove("open"); });
+universesOverlay.addEventListener("click", e=>{ if(e.target===universesOverlay) closeOverlayViaHistory(universesOverlay); });
 document.getElementById("universesBack").addEventListener("click", ()=>{
   document.getElementById("universesDetail").hidden = true;
   document.getElementById("universesList").hidden = false;
@@ -3325,8 +3336,8 @@ document.getElementById("openCalendar").addEventListener("click", ()=>{
   pushModalHistoryState();
   buildCalendar();
 });
-document.getElementById("calendarClose").addEventListener("click", ()=> calendarOverlay.classList.remove("open"));
-calendarOverlay.addEventListener("click", e=>{ if(e.target===calendarOverlay) calendarOverlay.classList.remove("open"); });
+document.getElementById("calendarClose").addEventListener("click", ()=> closeOverlayViaHistory(calendarOverlay));
+calendarOverlay.addEventListener("click", e=>{ if(e.target===calendarOverlay) closeOverlayViaHistory(calendarOverlay); });
 
 async function buildCalendar(){
   const el = document.getElementById("calendarResults");
@@ -3539,7 +3550,7 @@ async function fetchWikipediaPerson(personName, wikidataId, lang){
 function renderPersonWorks(){
   const resultsEl = document.getElementById("searchResults");
   const typeFilter = document.getElementById("pw-type")?.value || "all";
-  const hideExtras = document.getElementById("pw-hide-extras")?.checked ?? true;
+  const hideExtras = document.getElementById("pw-hide-extras")?.checked ?? false;
 
   let list = personWorksCache.slice();
   if(typeFilter!=="all") list = list.filter(x=>x.media_type===typeFilter);
@@ -3733,7 +3744,7 @@ async function openPersonWorks(personId, personName, asCrew){
     }
 
     let list = asCrew
-      ? (credits.crew||[]).filter(c=>c.department==="Directing")
+      ? (credits.crew||[]).filter(c=>c.job==="Director")
       : (credits.cast||[]);
 
     // Una sola scheda per titolo: conserva tutti i film/serie anche se privi di locandina.
@@ -4341,10 +4352,12 @@ document.getElementById("recoverProfileBtn").addEventListener("click", ()=>{
 /* ================= INIT ================= */
 document.addEventListener("keydown", (e)=>{
   if(e.key!=="Escape") return;
-  ["detailOverlay","moodOverlay","recOverlay","upcomingOverlay","calendarOverlay"].forEach(oid=>{
+  if(detailOverlay.classList.contains("open")){ closeDetailViaHistory(); return; }
+  const overlayIds = ["moodOverlay","recOverlay","upcomingOverlay","calendarOverlay","universesOverlay"];
+  for(const oid of overlayIds){
     const el = document.getElementById(oid);
-    if(el && el.classList.contains("open")) el.classList.remove("open");
-  });
+    if(el && el.classList.contains("open")){ closeOverlayViaHistory(el); return; }
+  }
 });
 
 /* ---------- Tasto/gesto "Indietro": chiude solo la scheda aperta, non esce dall'app ---------- */
@@ -4353,6 +4366,10 @@ document.addEventListener("keydown", (e)=>{
    (o lo swipe) chiude quella scheda invece di uscire dall'app o tornare alla Home. */
 function pushModalHistoryState(){
   try{ history.pushState({ cinemoodOverlay:true }, "", location.href); }catch(e){}
+}
+function closeOverlayViaHistory(el){
+  if(history.state && history.state.cinemoodOverlay) history.back();
+  else if(el) el.classList.remove("open");
 }
 window.addEventListener("popstate", ()=>{
   if(detailOverlay.classList.contains("open")){ closeDetail(); return; }
