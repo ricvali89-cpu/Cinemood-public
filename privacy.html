@@ -16,6 +16,7 @@
   --surface-2:#1c232d;
   --line:#262f3b;
   --gold:#e3a857;
+  --gold-dim:#9f7437;
   --text:#f2efe9;
   --muted:#8a93a3;
 }
@@ -58,8 +59,9 @@ a{color:var(--gold);}
   <p>CineMood è un progetto indipendente. Il titolare del trattamento dei dati, per qualsiasi domanda, richiesta o segnalazione, è contattabile all'indirizzo <a href="mailto:ricvali89@gmail.com">ricvali89@gmail.com</a>.</p>
 
   <h2>Come funziona l'accesso</h2>
-  <p>CineMood non richiede registrazione con email o password. Alla prima apertura, l'app crea automaticamente un profilo anonimo e univoco, gestito da Google Firebase. Non raccogliamo il tuo indirizzo email, numero di telefono o altri dati identificativi in questa fase.</p>
-  <p>L'unico dato che ti viene chiesto è un <b>nome da mostrare</b>, scelto liberamente da te, usato solo per firmare le recensioni che scrivi all'interno dell'app.</p>
+  <p>CineMood può essere usata senza registrazione: alla prima apertura crea automaticamente un profilo anonimo e univoco tramite Google Firebase Authentication.</p>
+  <p>Se lo desideri, puoi <b>proteggere o recuperare il profilo</b> collegando un account Google oppure usando un link di accesso inviato via email. In questi casi Firebase tratta anche l'indirizzo email e le informazioni di base fornite dal provider di accesso, esclusivamente per autenticazione e recupero del profilo.</p>
+  <p>Ti viene inoltre chiesto un <b>nome da mostrare</b>, scelto liberamente da te, usato per identificare il profilo nell'app e firmare le recensioni che pubblichi.</p>
 
   <h2>Quali dati raccogliamo</h2>
   <ul>
@@ -68,9 +70,11 @@ a{color:var(--gold);}
     <li><b>Titoli visti</b> — inclusi stagioni ed episodi singoli che segni come visti</li>
     <li><b>Voti personali</b> — da 1 a 10, assegnati ai titoli</li>
     <li><b>Recensioni</b> — il testo che scrivi (fino a 500 caratteri), il voto associato e la data</li>
-    <li><b>Identificativo tecnico anonimo</b> — generato automaticamente da Firebase per riconoscere il tuo profilo tra un accesso e l'altro sullo stesso dispositivo</li>
+    <li><b>Identificativo tecnico Firebase</b> — generato automaticamente per associare i dati al tuo profilo</li>
+    <li><b>Email e dati base del provider di accesso</b> — solo se scegli volontariamente Google o il recupero tramite email</li>
+    <li><b>Token per le notifiche push</b> — solo se attivi volontariamente le notifiche; serve a Firebase Cloud Messaging per recapitare le notifiche al tuo dispositivo</li>
   </ul>
-  <p>Non raccogliamo la tua posizione geografica, non accediamo a fotocamera o microfono, e non utilizziamo cookie di tracciamento pubblicitario. Se scegli volontariamente di attivare gli analytics, Google Analytics 4 può usare cookie o identificatori tecnici per misurare in forma aggregata sessioni, provenienza delle visite e interazioni con CineMood. L'app salva una copia dei tuoi dati anche localmente sul dispositivo (tramite lo spazio di archiviazione del browser), esclusivamente per farla funzionare più velocemente e permetterti di usarla brevemente anche senza connessione.</p>
+  <p>Non raccogliamo la tua posizione geografica e non accediamo a fotocamera o microfono. Le notifiche push vengono attivate solo dopo una tua scelta esplicita. Non utilizziamo cookie pubblicitari. Se scegli volontariamente di attivare gli analytics, Google Analytics 4 può usare cookie o identificatori tecnici per misurare in forma aggregata sessioni, provenienza delle visite e interazioni con CineMood. L'app salva inoltre una copia dei dati del profilo nello spazio locale del browser per velocizzare il funzionamento e mantenere una copia di sicurezza locale in caso di problemi temporanei di rete.</p>
 
   <div class="box">
     <p style="margin:0;"><b>⚠️ Le recensioni sono pubbliche.</b> Il testo che scrivi in una recensione, insieme al nome che hai scelto e al voto assegnato, è visibile a chiunque utilizzi CineMood — non solo a te. Non scrivere informazioni personali o sensibili all'interno delle recensioni.</p>
@@ -88,14 +92,16 @@ a{color:var(--gold);}
   <p id="analyticsStatus"></p>
 
   <h2>Dove sono conservati i dati</h2>
-  <p>I dati sono conservati sui server di Google Firebase (Google Cloud), in un'infrastruttura con sede in Europa. L'accesso ai tuoi dati personali (preferiti, visti, voti) è protetto da regole di sicurezza che permettono solo al tuo profilo di leggerli e modificarli — nessun altro utente può vedervi accedere.</p>
+  <p>I dati del profilo sono conservati tramite Google Firebase / Google Cloud secondo la regione configurata per il progetto. L'accesso applicativo ai dati è associato al tuo identificativo Firebase ed è gestito tramite Firebase Authentication e Firestore, nel rispetto delle regole di sicurezza configurate sul progetto Firebase.</p>
 
   <h2>Servizi di terze parti che utilizziamo</h2>
   <ul>
     <li><b>The Movie Database (TMDB)</b> — fornisce le informazioni su film e serie TV (titoli, trame, immagini, voti). Le tue ricerche vengono inviate a TMDB per restituire i risultati, ma senza alcun dato che ti identifichi personalmente. Maggiori informazioni: <a href="https://www.themoviedb.org/privacy-policy" target="_blank" rel="noopener">themoviedb.org/privacy-policy</a></li>
-    <li><b>Google Firebase</b> — gestisce l'accesso anonimo e la conservazione dei tuoi dati. Maggiori informazioni: <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">firebase.google.com/support/privacy</a></li>
+    <li><b>Google Firebase</b> — gestisce autenticazione anonima, accesso con Google/email, Firestore e, se attivate, le notifiche tramite Firebase Cloud Messaging. Maggiori informazioni: <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">firebase.google.com/support/privacy</a></li>
     <li><b>Google Analytics 4</b> — se attivato con il tuo consenso, misura in forma aggregata traffico e utilizzo di CineMood. Maggiori informazioni: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">policies.google.com/privacy</a></li>
-    <li><b>GitHub Pages</b> — ospita il sito stesso</li>
+    <li><b>OMDb</b> — viene interrogato per mostrare alcuni rating esterni dei titoli.</li>
+    <li><b>Wikipedia e Wikidata</b> — vengono interrogati tramite API ufficiali come fallback per biografie, dati e immagini delle schede persona quando le informazioni TMDB non sono sufficienti.</li>
+    <li><b>Vercel</b> — distribuisce il frontend web di CineMood e può trattare dati tecnici di connessione necessari a servire il sito.</li>
   </ul>
 
   <h2>I tuoi diritti</h2>
