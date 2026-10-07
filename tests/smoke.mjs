@@ -36,7 +36,7 @@ checkJavaScriptSyntax(sw, "firebase-messaging-sw.js");
 
 const requiredIds = [
   "app", "heroCarousel", "platformShelves", "weeklyTrending",
-  "popularResults", "searchResults", "favMovies", "favTv",
+  "popularResults", "searchResults", "favGrid",
   "detailOverlay", "moodOverlay", "recOverlay", "upcomingOverlay",
   "calendarOverlay", "universesOverlay", "switchProfileBtn"
 ];
