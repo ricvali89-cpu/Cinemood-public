@@ -1954,7 +1954,12 @@ async function buildContinueWatching(){
         for(const season of seasons.filter(s=>s.season_number>=startSeason)){
           const seasonData = await tmdb(`/tv/${tvId}/season/${season.season_number}`);
           const watched = WATCHED_EPISODES[tvId+"-"+season.season_number] || [];
-          const next = (seasonData.episodes||[]).find(ep=>ep.episode_number>0 && !watched.includes(ep.episode_number));
+          const today = heroDayKey();
+          const next = (seasonData.episodes||[]).find(ep=>
+            ep.episode_number>0 &&
+            !watched.includes(ep.episode_number) &&
+            (!ep.air_date || ep.air_date<=today)
+          );
           if(next){
             return {
               ...show,
@@ -3277,6 +3282,29 @@ async function buildRecommendations(){
       if(!scoreMap.has(key)) scoreMap.set(key, {item, score:0});
       scoreMap.get(key).score += 1 + (item.vote_average||0)/10;
     });
+
+    if(MY_PLATFORMS.length){
+      try{
+        const providerQuery = selectedProviderQuery();
+        const [pm1,pm2,pt1,pt2] = await Promise.all([
+          tmdb("/discover/movie",{watch_region:REGION,with_watch_providers:providerQuery,sort_by:"popularity.desc",page:1}),
+          tmdb("/discover/movie",{watch_region:REGION,with_watch_providers:providerQuery,sort_by:"popularity.desc",page:2}),
+          tmdb("/discover/tv",{watch_region:REGION,with_watch_providers:providerQuery,sort_by:"popularity.desc",page:1}),
+          tmdb("/discover/tv",{watch_region:REGION,with_watch_providers:providerQuery,sort_by:"popularity.desc",page:2})
+        ]);
+        const available = new Set([
+          ...(pm1.results||[]).map(x=>"movie-"+x.id),
+          ...(pm2.results||[]).map(x=>"movie-"+x.id),
+          ...(pt1.results||[]).map(x=>"tv-"+x.id),
+          ...(pt2.results||[]).map(x=>"tv-"+x.id)
+        ]);
+        scoreMap.forEach((entry,key)=>{
+          if(available.has(key)) entry.score += 2.5;
+        });
+      }catch(e){
+        console.warn("Priorità piattaforme non disponibile nei consigli.", e);
+      }
+    }
 
     const list = [...scoreMap.values()].sort((a,b)=>b.score-a.score).slice(0,50).map(x=>x.item);
 
