@@ -161,11 +161,50 @@ button{font-family:inherit;cursor:pointer;}
 }
 .brand{
   display:flex;align-items:center;gap:10px;
-  font-size:26px;
-  color:var(--gold);
+  min-width:max-content;
   white-space:nowrap;
+  line-height:1;
 }
-.brand .dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 12px var(--red);}
+.brand-dot{
+  width:10px;height:10px;border-radius:50%;
+  background:#ff3b43;
+  box-shadow:0 0 7px rgba(255,59,67,.95),0 0 18px rgba(255,59,67,.58);
+  flex:0 0 auto;
+}
+.brand-word{
+  display:inline-flex;align-items:baseline;
+  font-family:'Inter',sans-serif;
+  font-size:27px;font-weight:500;letter-spacing:-.055em;
+  background:linear-gradient(180deg,#ffe18a 0%,#f2bd58 46%,#c9852e 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 1px 4px rgba(227,168,87,.18));
+}
+.brand-m{
+  position:relative;display:inline-block;
+  margin:0 .012em;font-weight:700;letter-spacing:-.08em;
+  padding-right:.04em;
+}
+.brand-film{
+  position:absolute;
+  right:.055em;top:.13em;bottom:.075em;
+  width:.145em;
+  border-radius:.018em;
+  background:linear-gradient(180deg,#ffd873 0%,#d99432 100%);
+  box-shadow:-1px 0 rgba(91,56,17,.28);
+}
+.brand-film::before{
+  content:"";
+  position:absolute;left:50%;top:.11em;transform:translateX(-50%);
+  width:.056em;height:.072em;border-radius:.012em;
+  background:#11161d;
+  box-shadow:
+    0 .115em #11161d,
+    0 .230em #11161d,
+    0 .345em #11161d,
+    0 .460em #11161d;
+}
+.brand-mobile-mark{display:none;position:relative;font-family:'Inter',sans-serif;font-size:25px;font-weight:800;color:var(--gold);letter-spacing:-.08em;}
+.brand-mobile-mark .brand-film{right:.03em;top:.12em;bottom:.06em;width:.15em;}
 .nav{display:flex;gap:4px;flex:1;}
 .nav button{
   background:none;border:none;color:var(--muted);
@@ -724,8 +763,9 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
 @media(max-width:640px){
   html,body{overflow-x:hidden;}
   .topbar{padding:12px 14px;gap:8px 10px;padding-top:calc(12px + env(safe-area-inset-top));}
-  .brand{order:1;font-size:20px;}
-  .brand span.txt{display:none;}
+  .brand{order:1;gap:8px;}
+  .brand-word{display:none;}
+  .brand-mobile-mark{display:inline-block;}
   .profile-switch-btn{order:2;margin-left:auto;}
   .nav{order:3;flex:1 1 100%;overflow-x:auto;gap:6px;}
   .nav button{padding:7px 12px;font-size:12.5px;white-space:nowrap;}
@@ -786,7 +826,11 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
 
 <div id="app">
 <div class="topbar">
-  <div class="brand"><span class="dot"></span><span class="txt">CineMood</span></div>
+  <div class="brand" role="img" aria-label="CineMood">
+    <span class="brand-dot" aria-hidden="true"></span>
+    <span class="brand-word" aria-hidden="true"><span>Cine</span><span class="brand-m">M<span class="brand-film"></span></span><span>ood</span></span>
+    <span class="brand-mobile-mark" aria-hidden="true">M<span class="brand-film"></span></span>
+  </div>
   <nav class="nav">
     <button data-view="home" class="active" data-i18n="nav.home">Home</button>
     <button data-view="popular" data-i18n="nav.popular">🔥 Popolari</button>
