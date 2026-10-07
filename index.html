@@ -1511,14 +1511,38 @@ async function persistAll(){
 }
 
 /* ================= TMDB HELPERS ================= */
+// Cache breve in memoria: evita di rifare la stessa richiesta quando si riapre una scheda,
+// si cambia vista o si ricostruisce la Home nella stessa sessione.
+const TMDB_CACHE_TTL = 2 * 60 * 1000;
+const TMDB_CACHE_MAX = 200;
+const tmdbRequestCache = new Map();
+
 async function tmdb(path, params={}){
   const url = new URL(BASE+path);
   url.searchParams.set("api_key", TMDB_KEY);
   url.searchParams.set("language", currentLang==="en" ? "en-US" : "it-IT");
   Object.entries(params).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=="") url.searchParams.set(k,v); });
-  const res = await fetch(url);
-  if(!res.ok) throw new Error("TMDB error "+res.status);
-  return res.json();
+
+  const key = url.toString();
+  const now = Date.now();
+  const cached = tmdbRequestCache.get(key);
+  if(cached && now - cached.time < TMDB_CACHE_TTL) return cached.promise;
+  if(cached) tmdbRequestCache.delete(key);
+
+  const promise = fetch(url).then(async res=>{
+    if(!res.ok) throw new Error("TMDB error "+res.status);
+    return res.json();
+  }).catch(err=>{
+    tmdbRequestCache.delete(key);
+    throw err;
+  });
+
+  tmdbRequestCache.set(key, { time:now, promise });
+  if(tmdbRequestCache.size > TMDB_CACHE_MAX){
+    const oldest = tmdbRequestCache.keys().next().value;
+    tmdbRequestCache.delete(oldest);
+  }
+  return promise;
 }
 
 // Voti esterni (IMDb / Rotten Tomatoes / Metacritic) via OMDb, con cache locale
@@ -1754,18 +1778,24 @@ function observePlatformShelf(block, providerId){
 async function buildHeroCarousel(){
   const el = document.getElementById("heroCarousel");
   try{
-    const slides = [];
-    for(const p of PLATFORMS){
-      const [m, t] = await Promise.all([
-        tmdb("/discover/movie", { watch_region:REGION, with_watch_providers:p.id, sort_by:"vote_average.desc", "vote_count.gte":150, page:1 }),
-        tmdb("/discover/tv", { watch_region:REGION, with_watch_providers:p.id, sort_by:"vote_average.desc", "vote_count.gte":150, page:1 }),
-      ]);
-      const candidates = [
-        ...(m.results||[]).map(x=>({...x, media_type:"movie"})),
-        ...(t.results||[]).map(x=>({...x, media_type:"tv"})),
-      ].filter(x=>x.backdrop_path).sort((a,b)=>(b.vote_average||0)-(a.vote_average||0));
-      if(candidates[0]) slides.push({ item:candidates[0], platform:p });
-    }
+    // Prima le piattaforme venivano elaborate una dopo l'altra: 8 round-trip consecutivi.
+    // Le richieste indipendenti partono ora in parallelo, mantenendo lo stesso risultato visivo.
+    const slides = (await Promise.all(PLATFORMS.map(async p=>{
+      try{
+        const [m, t] = await Promise.all([
+          tmdb("/discover/movie", { watch_region:REGION, with_watch_providers:p.id, sort_by:"vote_average.desc", "vote_count.gte":150, page:1 }),
+          tmdb("/discover/tv", { watch_region:REGION, with_watch_providers:p.id, sort_by:"vote_average.desc", "vote_count.gte":150, page:1 }),
+        ]);
+        const candidates = [
+          ...(m.results||[]).map(x=>({...x, media_type:"movie"})),
+          ...(t.results||[]).map(x=>({...x, media_type:"tv"})),
+        ].filter(x=>x.backdrop_path).sort((a,b)=>(b.vote_average||0)-(a.vote_average||0));
+        return candidates[0] ? { item:candidates[0], platform:p } : null;
+      }catch(e){
+        console.warn("Hero non disponibile per", p.name, e);
+        return null;
+      }
+    }))).filter(Boolean);
 
     if(!slides.length){
       el.innerHTML = `<div class="empty">Impossibile caricare la home in questo momento.</div>`;
