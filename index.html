@@ -759,6 +759,7 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
       <div class="profile-menu-name" id="profileMenuName"></div>
       <button type="button" id="menuRenameBtn">✏️ <span data-i18n="menu.rename">Cambia nome</span></button>
       <a href="https://paypal.me/rick1689" target="_blank" rel="noopener" class="menu-coffee">☕ <span data-i18n="menu.coffee">Offrimi un caffè</span></a>
+      <button type="button" id="enableNotificationsBtn">🔔 <span data-i18n="menu.notifications">Attiva notifiche</span></button>
       <button type="button" id="menuSignOutBtn" class="danger">🚪 <span data-i18n="menu.signOut">Esci</span></button>
     </div>
   </div>
@@ -1084,7 +1085,8 @@ const I18N = {
     "mood.emptyResult":"Nessun risultato con questi filtri: prova ad allargarli.", "mood.chooseFirst":"Scegli prima un mood qui sopra.",
     "mood.choosePartner":"Scegli anche il mood del/la partner per trovare un match.",
     "profile.change":"Cambia profilo", "menu.rename":"Cambia nome", "menu.signOut":"Esci",
-    "menu.coffee":"Offrimi un caffè",
+    "menu.coffee":"Offrimi un caffè", "menu.notifications":"Attiva notifiche",
+    "footer.protect":"🔒 Proteggi il tuo profilo",
     "support.line":"CineMood è un progetto indipendente, gratuito e senza pubblicità.",
     "support.cta":"Offrimi un caffè",
   },
@@ -1124,7 +1126,8 @@ const I18N = {
     "mood.emptyResult":"No results with these filters: try widening them.", "mood.chooseFirst":"Pick a mood above first.",
     "mood.choosePartner":"Pick your partner's mood too, to find a match.",
     "profile.change":"Switch profile", "menu.rename":"Change name", "menu.signOut":"Sign out",
-    "menu.coffee":"Buy me a coffee",
+    "menu.coffee":"Buy me a coffee", "menu.notifications":"Enable notifications",
+    "footer.protect":"🔒 Protect your profile",
     "support.line":"CineMood is an independent project — free and ad-free.",
     "support.cta":"Buy me a coffee",
   }
@@ -1160,6 +1163,8 @@ function setLang(lang){
   buildMoodGrid();
   if(CURRENT_PROFILE){
     document.getElementById("switchProfileBtn").title = t("profile.change");
+    updateProtectButton();
+    updateNotificationButton();
     buildHome(); renderFavorites();
   }
 }
@@ -1249,16 +1254,20 @@ const VAPID_KEY = "BHqWWCwxTgTEqUU9OsHOsz-GwGeGrItzKbqGXbUIM_Ad5We__D3Ax2cJGUpRX
 let fbMessaging = null;
 try { fbMessaging = firebase.messaging(); } catch(e) { console.log("Messaging non supportato su questo browser."); }
 
-async function registerForPushNotifications() {
-  if (!fbMessaging || !CURRENT_PROFILE) return;
+async function registerForPushNotifications(requestPermission=false) {
+  if (!fbMessaging || !CURRENT_PROFILE || !("Notification" in window)) return false;
   try {
-    if (!("serviceWorker" in navigator)) return;
+    if (!("serviceWorker" in navigator)) return false;
     const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-    const permission = await Notification.requestPermission();
+    let permission = Notification.permission;
+
+    // Su iOS/PWA e sui browser moderni il prompt deve partire da un gesto esplicito dell'utente.
     if (permission !== "granted") {
-      console.log("Permesso notifiche non concesso.");
-      return;
+      if (!requestPermission || permission === "denied") return false;
+      permission = await Notification.requestPermission();
     }
+    if (permission !== "granted") return false;
+
     const token = await fbMessaging.getToken({
       vapidKey: VAPID_KEY,
       serviceWorkerRegistration: registration
@@ -1266,10 +1275,12 @@ async function registerForPushNotifications() {
     if (token) {
       await db.collection("profiles").doc(CURRENT_PROFILE).set({ fcmToken: token }, { merge: true });
       console.log("Token FCM salvato.");
+      return true;
     }
   } catch (e) {
     console.error("Registrazione notifiche fallita.", e);
   }
+  return false;
 }
 
 const store = {
@@ -1297,6 +1308,42 @@ let lastRecommendedItems = [];   // idem per Consigliati
 
 function pKey(base){ return `cinemood-${base}::${CURRENT_PROFILE}`; }
 function emptyProfileData(){ return { displayName:"", favorites:{movie:[],tv:[]}, watched:{movie:{},tv:{}}, watchedSeasons:{}, watchedEpisodes:{}, ratings:{movie:{},tv:{}} }; }
+
+function mergeProfileData(remoteRaw, localRaw){
+  const remote = { ...emptyProfileData(), ...(remoteRaw||{}) };
+  const local = { ...emptyProfileData(), ...(localRaw||{}) };
+
+  const mergeFavorites = (a=[], b=[])=>{
+    const map = new Map();
+    [...a, ...b].forEach(item=>{ if(item && item.id!=null) map.set(Number(item.id), item); });
+    return [...map.values()];
+  };
+  const mergeArrayMap = (a={}, b={})=>{
+    const out = {};
+    new Set([...Object.keys(a||{}), ...Object.keys(b||{})]).forEach(key=>{
+      out[key] = [...new Set([...(a[key]||[]), ...(b[key]||[])])].sort((x,y)=>Number(x)-Number(y));
+    });
+    return out;
+  };
+
+  return {
+    displayName: local.displayName || remote.displayName || "",
+    favorites: {
+      movie: mergeFavorites(remote.favorites?.movie, local.favorites?.movie),
+      tv: mergeFavorites(remote.favorites?.tv, local.favorites?.tv)
+    },
+    watched: {
+      movie: { ...(remote.watched?.movie||{}), ...(local.watched?.movie||{}) },
+      tv: { ...(remote.watched?.tv||{}), ...(local.watched?.tv||{}) }
+    },
+    watchedSeasons: mergeArrayMap(remote.watchedSeasons, local.watchedSeasons),
+    watchedEpisodes: mergeArrayMap(remote.watchedEpisodes, local.watchedEpisodes),
+    ratings: {
+      movie: { ...(remote.ratings?.movie||{}), ...(local.ratings?.movie||{}) },
+      tv: { ...(remote.ratings?.tv||{}), ...(local.ratings?.tv||{}) }
+    }
+  };
+}
 
 async function getReviewsFor(mediaType, id){
   const titleId = `${mediaType}-${id}`;
@@ -1394,17 +1441,46 @@ async function loadState(){
 // Non ricarica i dati (per non perdere eventuali modifiche fatte offline nel frattempo),
 // serve solo a "sbloccare" persistAll() una volta che la connessione torna disponibile.
 function retryCloudStateCheck(){
-  if(cloudRetryTimer) return;
+  if(cloudRetryTimer || !CURRENT_PROFILE) return;
+  const profileUid = CURRENT_PROFILE;
+
   cloudRetryTimer = setInterval(async ()=>{
+    if(CURRENT_PROFILE !== profileUid){
+      clearInterval(cloudRetryTimer);
+      cloudRetryTimer = null;
+      return;
+    }
+
     try{
-      const doc = await db.collection("profiles").doc(CURRENT_PROFILE).get();
-      if(doc.exists || true){
-        cloudStateReady = true;
-        cloudOk = true;
-        clearInterval(cloudRetryTimer);
-        cloudRetryTimer = null;
-        console.log("Connessione a Firestore ripristinata: sincronizzazione riattivata.");
-      }
+      const ref = db.collection("profiles").doc(profileUid);
+      const doc = await ref.get();
+      const localData = await store.get(pKey("data"), null) || {
+        displayName:CURRENT_DISPLAY_NAME,
+        favorites:FAVORITES,
+        watched:WATCHED,
+        watchedSeasons:WATCHED_SEASONS,
+        watchedEpisodes:WATCHED_EPISODES,
+        ratings:RATINGS
+      };
+      const merged = doc.exists ? mergeProfileData(doc.data(), localData) : localData;
+
+      // Riconcilia prima di riabilitare le scritture, così il ritorno online non cancella dati remoti.
+      await ref.set(merged, { merge:true });
+      CURRENT_DISPLAY_NAME = merged.displayName || "";
+      FAVORITES = merged.favorites || {movie:[],tv:[]};
+      WATCHED = merged.watched || {movie:{},tv:{}};
+      WATCHED_SEASONS = merged.watchedSeasons || {};
+      WATCHED_EPISODES = merged.watchedEpisodes || {};
+      RATINGS = merged.ratings || {movie:{},tv:{}};
+      await store.set(pKey("data"), merged);
+
+      cloudStateReady = true;
+      cloudOk = true;
+      clearInterval(cloudRetryTimer);
+      cloudRetryTimer = null;
+      renderFavorites();
+      refreshAllCardStates();
+      console.log("Connessione a Firestore ripristinata: dati riconciliati e sincronizzazione riattivata.");
     }catch(e){ /* rete ancora non disponibile, riprova al prossimo giro */ }
   }, 5000);
 }
@@ -1422,7 +1498,7 @@ async function persistAll(){
     return;
   }
   try{
-    await db.collection("profiles").doc(CURRENT_PROFILE).set(data);
+    await db.collection("profiles").doc(CURRENT_PROFILE).set(data, { merge:true });
     cloudOk = true;
   }catch(e){
     console.error("Salvataggio cloud fallito, resta salvato solo sul telefono.", e);
@@ -2474,13 +2550,13 @@ function renderReviewsList(reviewsRaw, mediaType, id){
   wrap.innerHTML = reviews.map(r=>`
     <div class="review-item">
       <div class="review-item-head">
-        <span class="review-author">${r.author}${r.uid===CURRENT_PROFILE?' (' + (currentLang==="en"?"you":"tu") + ')':''}</span>
-        <span class="review-item-rating">${r.rating?`★ ${r.rating}/10`:''}</span>
+        <span class="review-author">${escHtml(r.author || (currentLang==="en"?"Anonymous":"Anonimo"))}${r.uid===CURRENT_PROFILE?' (' + (currentLang==="en"?"you":"tu") + ')':''}</span>
+        <span class="review-item-rating">${r.rating?`★ ${Number(r.rating)}/10`:''}</span>
       </div>
-      ${r.text?`<p class="review-text">${r.text.replace(/</g,'&lt;')}</p>`:''}
+      ${r.text?`<p class="review-text">${escHtml(r.text)}</p>`:''}
       <div class="review-item-head" style="margin-top:6px;">
-        <span class="review-date">${r.date||''}</span>
-        ${r.uid!==CURRENT_PROFILE ? `<button class="review-report-btn" type="button" data-report-uid="${r.uid}">${t("review.report")}</button>` : ''}
+        <span class="review-date">${escHtml(r.date||'')}</span>
+        ${r.uid!==CURRENT_PROFILE ? `<button class="review-report-btn" type="button" data-report-uid="${escHtml(r.uid)}">${t("review.report")}</button>` : ''}
       </div>
     </div>
   `).join("");
@@ -3915,7 +3991,8 @@ async function bootProfile(uid){
   swBtn.style.borderColor = profColor+"55";
 
   renderFavorites();
-  registerForPushNotifications();
+  registerForPushNotifications(false);
+  updateNotificationButton();
   refreshAllCardStates();
   await loadPlatformLogos();
   buildHome();
@@ -4092,6 +4169,28 @@ async function showStreamingReviewPage(){
   }
 }
 
+function updateNotificationButton(){
+  const btn = document.getElementById("enableNotificationsBtn");
+  if(!btn) return;
+
+  if(!("Notification" in window) || !fbMessaging){
+    btn.hidden = true;
+    return;
+  }
+
+  btn.hidden = false;
+  if(Notification.permission === "granted"){
+    btn.textContent = currentLang==="en" ? "✅ Notifications enabled" : "✅ Notifiche attive";
+    btn.disabled = true;
+  }else if(Notification.permission === "denied"){
+    btn.textContent = currentLang==="en" ? "🔕 Notifications blocked in browser settings" : "🔕 Notifiche bloccate nelle impostazioni";
+    btn.disabled = true;
+  }else{
+    btn.textContent = "🔔 " + (currentLang==="en" ? "Enable notifications" : "Attiva notifiche");
+    btn.disabled = false;
+  }
+}
+
 function updateProtectButton(){
   const btn = document.getElementById("protectProfileBtn");
   const googleBtn = document.getElementById("linkGoogleBtn");
@@ -4123,6 +4222,14 @@ function updateProtectButton(){
     googleBtn.style.cursor = "pointer";
   }
 }
+
+document.getElementById("enableNotificationsBtn").addEventListener("click", async ()=>{
+  const btn = document.getElementById("enableNotificationsBtn");
+  btn.disabled = true;
+  const ok = await registerForPushNotifications(true);
+  updateNotificationButton();
+  if(ok) toast(currentLang==="en" ? "Notifications enabled" : "Notifiche attivate");
+});
 
 document.getElementById("linkGoogleBtn").addEventListener("click", ()=>{
   const googleBtn = document.getElementById("linkGoogleBtn");
