@@ -38,7 +38,9 @@ const requiredIds = [
   "app", "heroCarousel", "platformShelves", "weeklyTrending",
   "popularResults", "searchResults", "favGrid",
   "detailOverlay", "moodOverlay", "recOverlay", "upcomingOverlay",
-  "calendarOverlay", "universesOverlay", "switchProfileBtn"
+  "calendarOverlay", "universesOverlay", "newsOverlay", "platformsOverlay",
+  "statsOverlay", "notificationPrefsOverlay", "continueSection", "continueShelf",
+  "openNews", "menuPlatformsBtn", "menuStatsBtn", "switchProfileBtn"
 ];
 for (const id of requiredIds) {
   assert(index.includes(`id="${id}"`), `Elemento UI mancante: #${id}`);
@@ -47,7 +49,9 @@ for (const id of requiredIds) {
 const requiredFunctions = [
   "buildHome", "runPopular", "runSearch", "renderFavorites", "openDetail",
   "runMoodSearch", "buildRecommendations", "buildUpcoming", "buildCalendar",
-  "openUniverseDetail", "openPersonWorks", "loadEpisodes", "persistAll"
+  "openUniverseDetail", "openPersonWorks", "loadEpisodes", "persistAll",
+  "buildContinueWatching", "renderPlatformPicker", "buildStats", "buildNews",
+  "runSmartNotificationCheck"
 ];
 for (const fn of requiredFunctions) {
   assert(
@@ -83,6 +87,13 @@ assert(index.includes("openDetail(id, mediaType, false)"), "Re-render dettaglio 
 assert(index.includes('c=>c.job==="Director"'), "Scheda regista non limitata al ruolo Director");
 assert(index.includes("const cinemaPageCount = Math.min("), "Paginazione uscite cinema mancante");
 assert(index.includes("CURATED_STREAMING_MONTH"), "Mese streaming curato mancante");
+assert(index.includes("MY_PLATFORMS"), "Preferenze piattaforme mancanti");
+assert(index.includes("NOTIFICATION_PREFS"), "Preferenze notifiche mancanti");
+assert(index.includes("selectedProviderQuery()"), "Priorità piattaforme non collegata ai filtri");
+assert(index.includes("buildContinueWatching();"), "Continua a guardare non collegato alla Home");
+assert(index.includes('id="openNews"'), "Ingresso News mancante");
+assert(index.includes("TMDB ·"), "Fonte TMDB non mostrata nelle News");
+assert(index.includes("HERO_ROTATION_DAYS"), "Rotazione dinamica carosello mancante");
 
 assert(
   landing.includes("https://play.google.com/store/apps/details?id=io.github.ricvali89_cpu.twa"),
@@ -102,5 +113,5 @@ assert(sw.includes("notificationclick"), "Service worker: gestione tap notifica 
 assert(sw.includes("onBackgroundMessage"), "Service worker: gestione FCM background mancante");
 
 console.log("✓ CineMood smoke check superato");
-console.log("  Home, ricerca, dettaglio, persone, preferiti, Mood, uscite, calendario e universi: struttura presente");
+console.log("  Home, continua a guardare, News, statistiche, piattaforme, ricerca, dettaglio, Mood, uscite, calendario e universi: struttura presente");
 console.log("  JavaScript, i18n, privacy, manifest, FCM e regressioni note: OK");
