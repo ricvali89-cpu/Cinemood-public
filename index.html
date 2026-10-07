@@ -265,7 +265,7 @@ button{font-family:inherit;cursor:pointer;}
 }
 .hero-slide{
   position:absolute;inset:0;opacity:0;pointer-events:none;
-  transition:opacity 1s ease;
+  transition:opacity .85s ease;
   background-size:cover;background-position:center 20%;
   display:flex;align-items:flex-end;cursor:pointer;
 }
@@ -277,6 +277,10 @@ button{font-family:inherit;cursor:pointer;}
     linear-gradient(90deg, rgba(9,11,15,.7) 0%, rgba(9,11,15,.1) 55%, transparent 100%);
 }
 .hero-content{position:relative;z-index:2;padding:32px 34px;max-width:620px;}
+.hero-daily-label{
+  display:block;color:rgba(255,255,255,.78);font-size:11px;font-weight:800;
+  letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px;
+}
 .hero-platform-badge{
   display:inline-flex;align-items:center;gap:8px;background:rgba(9,11,15,.55);backdrop-filter:blur(6px);
   padding:6px 14px;border-radius:999px;font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
@@ -285,9 +289,13 @@ button{font-family:inherit;cursor:pointer;}
 .hero-content h2{font-family:'Bebas Neue';font-size:clamp(30px,6vw,52px);margin:0 0 12px;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.6);line-height:1.02;}
 .hero-meta{display:flex;gap:14px;align-items:center;color:rgba(255,255,255,.88);font-size:13px;margin-bottom:18px;font-weight:600;}
 .hero-info-btn{position:relative;z-index:3;}
-.hero-dots{position:absolute;bottom:18px;right:22px;z-index:3;display:flex;gap:6px;}
-.hero-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.35);transition:.25s;}
-.hero-dot.active{background:#fff;width:22px;border-radius:4px;}
+.hero-dots{position:absolute;bottom:18px;right:22px;z-index:3;display:flex;gap:7px;align-items:center;}
+.hero-dot{
+  width:8px;height:8px;border:0;padding:0;border-radius:50%;
+  background:rgba(255,255,255,.35);transition:.25s;cursor:pointer;
+}
+.hero-dot.active{background:#fff;width:24px;border-radius:4px;}
+.hero-dot:focus-visible{outline:2px solid #fff;outline-offset:3px;}
 @media(max-width:640px){
   .hero-carousel{height:58vh;min-height:340px;border-radius:12px;}
   .hero-content{padding:22px 20px;}
@@ -1775,27 +1783,158 @@ function observePlatformShelf(block, providerId){
   shelfObserver.observe(block);
 }
 
+const HERO_ROTATION_DAYS = 14;
+const HERO_AUTOPLAY_MS = 4800;
+const HERO_HISTORY_KEY = "cinemood-hero-history-v2";
+const HERO_DAILY_KEY = "cinemood-hero-daily-v2";
+
+function heroProfileKey(base){
+  return `${base}::${CURRENT_PROFILE||"guest"}`;
+}
+function heroDayKey(date=new Date()){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,"0");
+  const d = String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+function readHeroLocal(base, fallback){
+  try{
+    const raw = localStorage.getItem(heroProfileKey(base));
+    return raw ? JSON.parse(raw) : fallback;
+  }catch(e){ return fallback; }
+}
+function writeHeroLocal(base, value){
+  try{ localStorage.setItem(heroProfileKey(base), JSON.stringify(value)); }catch(e){}
+}
+function heroHash(str){
+  let h = 2166136261;
+  for(let i=0;i<str.length;i++){
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+function heroRandom(seed){ return heroHash(seed) / 4294967295; }
+function heroItemKey(item){ return `${item.media_type}-${item.id}`; }
+function heroDaysBetween(fromDay, toDay){
+  const a = new Date(fromDay+"T00:00:00").getTime();
+  const b = new Date(toDay+"T00:00:00").getTime();
+  if(!Number.isFinite(a) || !Number.isFinite(b)) return Infinity;
+  return Math.floor((b-a)/86400000);
+}
+function heroCandidateScore(item, seed){
+  const vote = Number(item.vote_average)||0;
+  const votes = Number(item.vote_count)||0;
+  const popularity = Number(item.popularity)||0;
+  const dateStr = item.release_date || item.first_air_date || "";
+  const releaseMs = dateStr ? new Date(dateStr+"T00:00:00").getTime() : 0;
+  const ageDays = releaseMs ? Math.max(0, Math.floor((Date.now()-releaseMs)/86400000)) : Infinity;
+  const freshness = ageDays<=180 ? 14 : ageDays<=730 ? 9 : ageDays<=1825 ? 4 : 0;
+  const quality = vote * 6;
+  const confidence = Math.log1p(votes) * 1.7;
+  const trend = Math.log1p(popularity) * 4;
+  const dailyMix = heroRandom(seed) * 20;
+  return quality + confidence + trend + freshness + dailyMix;
+}
+
 async function buildHeroCarousel(){
   const el = document.getElementById("heroCarousel");
+  if(el._heroTimer){ clearInterval(el._heroTimer); el._heroTimer = null; }
+  if(el._heroVisibilityHandler){
+    document.removeEventListener("visibilitychange", el._heroVisibilityHandler);
+    el._heroVisibilityHandler = null;
+  }
+
   try{
-    // Prima le piattaforme venivano elaborate una dopo l'altra: 8 round-trip consecutivi.
-    // Le richieste indipendenti partono ora in parallelo, mantenendo lo stesso risultato visivo.
-    const slides = (await Promise.all(PLATFORMS.map(async p=>{
+    const today = heroDayKey();
+    const history = readHeroLocal(HERO_HISTORY_KEY, {});
+    let daily = readHeroLocal(HERO_DAILY_KEY, null);
+    if(!daily || daily.date!==today || !daily.selections) daily = { date:today, selections:{} };
+
+    Object.keys(history).forEach(key=>{
+      if(heroDaysBetween(history[key], today) > 45) delete history[key];
+    });
+
+    const platformPools = await Promise.all(PLATFORMS.map(async p=>{
       try{
         const [m, t] = await Promise.all([
-          tmdb("/discover/movie", { watch_region:REGION, with_watch_providers:p.id, sort_by:"vote_average.desc", "vote_count.gte":150, page:1 }),
-          tmdb("/discover/tv", { watch_region:REGION, with_watch_providers:p.id, sort_by:"vote_average.desc", "vote_count.gte":150, page:1 }),
+          tmdb("/discover/movie", {
+            watch_region:REGION, with_watch_providers:p.id, sort_by:"popularity.desc",
+            "vote_count.gte":40, page:1
+          }),
+          tmdb("/discover/tv", {
+            watch_region:REGION, with_watch_providers:p.id, sort_by:"popularity.desc",
+            "vote_count.gte":40, page:1
+          }),
         ]);
+        const seen = new Set();
         const candidates = [
           ...(m.results||[]).map(x=>({...x, media_type:"movie"})),
           ...(t.results||[]).map(x=>({...x, media_type:"tv"})),
-        ].filter(x=>x.backdrop_path).sort((a,b)=>(b.vote_average||0)-(a.vote_average||0));
-        return candidates[0] ? { item:candidates[0], platform:p } : null;
+        ].filter(item=>{
+          if(!item.backdrop_path) return false;
+          const key = heroItemKey(item);
+          if(seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        return { platform:p, candidates };
       }catch(e){
         console.warn("Hero non disponibile per", p.name, e);
-        return null;
+        return { platform:p, candidates:[] };
       }
-    }))).filter(Boolean);
+    }));
+
+    const chosenKeys = new Set();
+    const slides = [];
+
+    for(const {platform, candidates} of platformPools){
+      if(!candidates.length) continue;
+
+      const saved = daily.selections[String(platform.id)];
+      let picked = saved
+        ? candidates.find(item=>
+            item.id===saved.id &&
+            item.media_type===saved.media_type &&
+            !isWatched(item.media_type,item.id) &&
+            !chosenKeys.has(heroItemKey(item))
+          )
+        : null;
+
+      if(!picked){
+        const available = candidates.filter(item=>{
+          const key = heroItemKey(item);
+          const lastShown = history[key];
+          const shownRecently = lastShown && heroDaysBetween(lastShown,today) < HERO_ROTATION_DAYS;
+          return !isWatched(item.media_type,item.id) && !shownRecently && !chosenKeys.has(key);
+        });
+
+        const fallbackUnwatched = candidates.filter(item=>
+          !isWatched(item.media_type,item.id) && !chosenKeys.has(heroItemKey(item))
+        );
+        const fallbackAny = candidates.filter(item=>!chosenKeys.has(heroItemKey(item)));
+        const pool = available.length ? available : (fallbackUnwatched.length ? fallbackUnwatched : fallbackAny);
+
+        pool.sort((a,b)=>
+          heroCandidateScore(b,`${today}|${platform.id}|${heroItemKey(b)}`) -
+          heroCandidateScore(a,`${today}|${platform.id}|${heroItemKey(a)}`)
+        );
+        picked = pool[0] || null;
+
+        if(picked){
+          daily.selections[String(platform.id)] = { id:picked.id, media_type:picked.media_type };
+        }
+      }
+
+      if(!picked) continue;
+      const key = heroItemKey(picked);
+      chosenKeys.add(key);
+      history[key] = today;
+      slides.push({ item:picked, platform });
+    }
+
+    writeHeroLocal(HERO_DAILY_KEY, daily);
+    writeHeroLocal(HERO_HISTORY_KEY, history);
 
     if(!slides.length){
       el.innerHTML = `<div class="empty">Impossibile caricare la home in questo momento.</div>`;
@@ -1804,41 +1943,99 @@ async function buildHeroCarousel(){
 
     el.innerHTML = `
       ${slides.map((s,i)=>{
-        const title = s.item.title || s.item.name;
+        const title = escHtml(s.item.title || s.item.name || "CineMood");
         const year = (s.item.release_date || s.item.first_air_date || "").slice(0,4);
-        return `<div class="hero-slide ${i===0?'active':''}" style="background-image:url('https://image.tmdb.org/t/p/w1280${s.item.backdrop_path}')" data-idx="${i}" tabindex="0" role="button">
+        return `<div class="hero-slide ${i===0?'active':''}" style="background-image:url('https://image.tmdb.org/t/p/w1280${s.item.backdrop_path}')" data-idx="${i}" tabindex="0" role="button" aria-label="${title}">
           <div class="hero-content">
-            <span class="hero-platform-badge" style="color:${s.platform.color}">${s.platform.name}</span>
+            <span class="hero-daily-label">${currentLang==="en"?"✨ Today's pick":"✨ In evidenza oggi"}</span>
+            <span class="hero-platform-badge" style="color:${s.platform.color}">${escHtml(s.platform.name)}</span>
             <h2>${title}</h2>
             <div class="hero-meta"><span>★ ${s.item.vote_average?s.item.vote_average.toFixed(1):"—"}</span><span>${year||"—"}</span></div>
             <button class="btn primary hero-info-btn" type="button">ℹ️ Info</button>
           </div>
         </div>`;
       }).join("")}
-      <div class="hero-dots">${slides.map((_,i)=>`<span class="hero-dot ${i===0?'active':''}"></span>`).join("")}</div>
+      <div class="hero-dots">${slides.map((_,i)=>`<button class="hero-dot ${i===0?'active':''}" type="button" data-idx="${i}" aria-label="${currentLang==="en"?"Show slide":"Mostra slide"} ${i+1}"></button>`).join("")}</div>
     `;
 
-    el.querySelectorAll(".hero-slide").forEach((slideEl, i)=>{
-      const s = slides[i];
-      slideEl.addEventListener("click", ()=> openDetail(s.item.id, s.item.media_type));
-      slideEl.addEventListener("keydown", (e)=>{
-        if(e.key==="Enter" || e.key===" "){ e.preventDefault(); openDetail(s.item.id, s.item.media_type); }
-      });
-    });
-
-    if(el._heroTimer) clearInterval(el._heroTimer);
     let idx = 0;
-    el._heroTimer = setInterval(()=>{
+    let suppressClickUntil = 0;
+    const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function showSlide(nextIdx){
       const allSlides = el.querySelectorAll(".hero-slide");
       const allDots = el.querySelectorAll(".hero-dot");
       if(!allSlides.length) return;
-      allSlides[idx].classList.remove("active");
-      allDots[idx].classList.remove("active");
-      idx = (idx+1) % allSlides.length;
-      allSlides[idx].classList.add("active");
-      allDots[idx].classList.add("active");
-    }, 2500);
+      const safeIdx = (nextIdx + allSlides.length) % allSlides.length;
+      allSlides[idx]?.classList.remove("active");
+      allDots[idx]?.classList.remove("active");
+      idx = safeIdx;
+      allSlides[idx]?.classList.add("active");
+      allDots[idx]?.classList.add("active");
+    }
+    function stopAutoplay(){
+      if(el._heroTimer){ clearInterval(el._heroTimer); el._heroTimer = null; }
+    }
+    function startAutoplay(){
+      stopAutoplay();
+      if(reducedMotion || document.hidden || slides.length<2) return;
+      el._heroTimer = setInterval(()=>showSlide(idx+1), HERO_AUTOPLAY_MS);
+    }
+
+    el.querySelectorAll(".hero-slide").forEach((slideEl, i)=>{
+      const s = slides[i];
+      slideEl.addEventListener("click", ()=>{
+        if(Date.now() < suppressClickUntil) return;
+        openDetail(s.item.id, s.item.media_type);
+      });
+      slideEl.addEventListener("keydown", e=>{
+        if(e.key==="Enter" || e.key===" "){
+          e.preventDefault();
+          openDetail(s.item.id, s.item.media_type);
+        }
+      });
+    });
+
+    el.querySelectorAll(".hero-dot").forEach(dot=>{
+      dot.addEventListener("click", e=>{
+        e.stopPropagation();
+        showSlide(Number(dot.dataset.idx)||0);
+        startAutoplay();
+      });
+    });
+
+    let touchX = 0, touchY = 0;
+    el.addEventListener("touchstart", e=>{
+      const touch = e.changedTouches[0];
+      touchX = touch.clientX;
+      touchY = touch.clientY;
+      stopAutoplay();
+    }, {passive:true});
+    el.addEventListener("touchend", e=>{
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - touchX;
+      const dy = touch.clientY - touchY;
+      if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)){
+        suppressClickUntil = Date.now()+450;
+        showSlide(idx + (dx<0 ? 1 : -1));
+      }
+      startAutoplay();
+    }, {passive:true});
+
+    el.addEventListener("mouseenter", stopAutoplay);
+    el.addEventListener("mouseleave", startAutoplay);
+    el.addEventListener("focusin", stopAutoplay);
+    el.addEventListener("focusout", startAutoplay);
+
+    el._heroVisibilityHandler = ()=>{
+      if(document.hidden) stopAutoplay();
+      else startAutoplay();
+    };
+    document.addEventListener("visibilitychange", el._heroVisibilityHandler);
+
+    startAutoplay();
   }catch(e){
+    console.error("Errore carosello Home.", e);
     el.innerHTML = `<div class="empty">Impossibile caricare la home in questo momento.</div>`;
   }
 }
