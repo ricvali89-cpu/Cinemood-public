@@ -668,6 +668,47 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
 .menu-coffee:hover{background:var(--surface-2);}
 
 /* ---------- Riga di supporto in fondo alla home ---------- */
+.feature-section[hidden]{display:none!important;}
+.feature-section{margin:0 0 26px;}
+.continue-note{color:var(--muted);font-size:12px;margin:-4px 0 10px;}
+.platform-picker-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-top:14px;
+}
+.platform-pick{
+  display:flex;align-items:center;gap:10px;text-align:left;
+  background:var(--surface-2);color:var(--text);border:1px solid var(--line);
+  border-radius:12px;padding:12px;cursor:pointer;font-weight:700;
+}
+.platform-pick.active{border-color:var(--gold);box-shadow:0 0 0 2px rgba(227,168,87,.12);}
+.platform-pick img{width:28px;height:28px;border-radius:7px;object-fit:contain;flex:0 0 auto;}
+.platform-pick .platform-pick-check{margin-left:auto;color:var(--gold);font-size:17px;}
+.stats-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0 18px;}
+.stat-card{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:15px;}
+.stat-card strong{display:block;color:var(--gold);font-family:'Bebas Neue';font-size:28px;line-height:1;}
+.stat-card span{display:block;color:var(--muted);font-size:12px;margin-top:7px;}
+.stats-highlight{background:linear-gradient(135deg,rgba(227,168,87,.12),rgba(122,92,240,.08));border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:10px;}
+.news-list{display:grid;gap:12px;margin-top:14px;}
+.news-item{
+  display:grid;grid-template-columns:120px 1fr;gap:14px;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;
+}
+.news-item img{width:120px;height:100%;min-height:105px;object-fit:cover;}
+.news-item-body{padding:12px 12px 12px 0;}
+.news-item-kicker{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);}
+.news-item h4{font-size:15px;margin:5px 0 6px;line-height:1.25;}
+.news-item p{font-size:12px;color:var(--muted);margin:0;line-height:1.45;}
+.news-item-meta{font-size:10.5px;color:var(--muted);margin-top:8px;}
+.pref-row{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);}
+.pref-row:last-child{border-bottom:0;}
+.pref-row input{margin-top:3px;transform:scale(1.15);}
+.pref-row strong{display:block;font-size:13.5px;}
+.pref-row span{display:block;color:var(--muted);font-size:12px;margin-top:3px;line-height:1.4;}
+@media(max-width:560px){
+  .news-item{grid-template-columns:92px 1fr;}
+  .news-item img{width:92px;min-height:112px;}
+  .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
 .home-support{
   margin:44px auto 8px;padding:22px 16px;text-align:center;
   border-top:1px solid var(--line);max-width:520px;
@@ -758,6 +799,7 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
   </div>
   <button class="mood-btn alt-purple" id="openRecommended" type="button">✨ <span class="txt-label" data-i18n="btn.recommended">Consigliati</span></button>
   <button class="mood-btn alt-teal" id="openUpcoming" type="button">🆕 <span class="txt-label" data-i18n="btn.upcoming">Uscite</span></button>
+  <button class="mood-btn alt-purple" id="openNews" type="button">📰 <span class="txt-label" data-i18n="btn.news">News</span></button>
   <button class="mood-btn alt-cal" id="openCalendar" type="button">📅 <span class="txt-label" data-i18n="btn.calendar">Calendario</span></button>
   <button class="mood-btn alt-universe" id="openUniverses" type="button">🌐 <span class="txt-label" data-i18n="btn.universes">Universi</span></button>
   <button class="mood-btn" id="openMood">🎭 <span class="txt-label" data-i18n="btn.mood">Mood</span></button>
@@ -766,6 +808,8 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
     <div class="profile-menu" id="profileMenu" hidden>
       <div class="profile-menu-name" id="profileMenuName"></div>
       <button type="button" id="menuRenameBtn">✏️ <span data-i18n="menu.rename">Cambia nome</span></button>
+      <button type="button" id="menuPlatformsBtn">📺 <span data-i18n="menu.platforms">Le mie piattaforme</span></button>
+      <button type="button" id="menuStatsBtn">📊 <span data-i18n="menu.stats">Il mio CineMood</span></button>
       <a href="https://paypal.me/rick1689" target="_blank" rel="noopener" class="menu-coffee">☕ <span data-i18n="menu.coffee">Offrimi un caffè</span></a>
       <button type="button" id="enableNotificationsBtn">🔔 <span data-i18n="menu.notifications">Attiva notifiche</span></button>
       <button type="button" id="menuSignOutBtn" class="danger">🚪 <span data-i18n="menu.signOut">Esci</span></button>
@@ -778,6 +822,16 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
   <div class="hero-carousel" id="heroCarousel">
     <div class="loader" style="padding:80px 0;justify-content:center"><div class="spin"></div>Preparo la home…</div>
   </div>
+
+  <div class="feature-section" id="continueSection" hidden>
+    <div class="section-title" style="margin-top:6px;">
+      <span class="eyebrow" data-i18n="home.continueLabel">Riprendi da dove eri rimasto</span>
+      <h2 data-i18n="home.continue">▶ Continua a guardare</h2>
+      <div class="rule"></div>
+    </div>
+    <div class="shelf-row" id="continueShelf"></div>
+  </div>
+
   <div class="section-title" style="margin-top:6px;">
     <span class="eyebrow" data-i18n="home.nowLabel">Al cinema ora</span>
     <h2 data-i18n="home.cinema">🎦 Al cinema</h2>
@@ -1045,6 +1099,83 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
   </div>
 </div>
 
+<div class="overlay" id="platformsOverlay">
+  <div class="modal">
+    <div class="modal-sticky-header">
+      <div>
+        <h3 data-i18n="platforms.title">Le mie piattaforme</h3>
+        <p data-i18n="platforms.subtitle">Scegli gli abbonamenti che usi: CineMood li metterà in evidenza nella Home e nei Mood.</p>
+      </div>
+      <button class="modal-close" id="platformsClose" type="button">✕</button>
+    </div>
+    <div class="mood-body">
+      <div id="platformPicker" class="platform-picker-grid"></div>
+      <p id="platformPickerNote" style="color:var(--muted);font-size:12px;margin-top:14px;"></p>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="statsOverlay">
+  <div class="modal">
+    <div class="modal-sticky-header">
+      <div>
+        <h3 data-i18n="stats.title">Il tuo CineMood</h3>
+        <p data-i18n="stats.subtitle">Una fotografia delle tue visioni, preferiti e voti.</p>
+      </div>
+      <button class="modal-close" id="statsClose" type="button">✕</button>
+    </div>
+    <div class="mood-body" id="statsBody"></div>
+  </div>
+</div>
+
+<div class="overlay" id="newsOverlay">
+  <div class="modal">
+    <div class="modal-sticky-header">
+      <div>
+        <h3 data-i18n="news.title">News & Novità</h3>
+        <p data-i18n="news.subtitle">Aggiornamenti automatici in italiano da TMDB: cinema, serie, trend e trailer.</p>
+      </div>
+      <button class="modal-close" id="newsClose" type="button">✕</button>
+    </div>
+    <div class="mood-body">
+      <div class="subtabs" id="newsFilters">
+        <button type="button" class="active" data-news-filter="all" data-i18n="tabs.all">Tutti</button>
+        <button type="button" data-news-filter="movie" data-i18n="tabs.movies">Film</button>
+        <button type="button" data-news-filter="tv" data-i18n="tabs.tv">Serie TV</button>
+        <button type="button" data-news-filter="trailer">Trailer</button>
+      </div>
+      <div id="newsResults" class="news-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="notificationPrefsOverlay">
+  <div class="modal">
+    <div class="modal-sticky-header">
+      <div>
+        <h3 data-i18n="notify.title">Notifiche intelligenti</h3>
+        <p data-i18n="notify.subtitle">Scegli cosa vuoi che CineMood tenga d'occhio per te.</p>
+      </div>
+      <button class="modal-close" id="notificationPrefsClose" type="button">✕</button>
+    </div>
+    <div class="mood-body">
+      <label class="pref-row">
+        <input type="checkbox" id="notifyEpisodes">
+        <span><strong data-i18n="notify.episodes">Nuovi episodi</strong><span data-i18n="notify.episodesSub">Avvisi per le serie che segui nei preferiti.</span></span>
+      </label>
+      <label class="pref-row">
+        <input type="checkbox" id="notifyStreaming">
+        <span><strong data-i18n="notify.streaming">Uscite streaming</strong><span data-i18n="notify.streamingSub">Dai priorità alle piattaforme che hai selezionato.</span></span>
+      </label>
+      <label class="pref-row">
+        <input type="checkbox" id="notifyNews">
+        <span><strong data-i18n="notify.news">News CineMood</strong><span data-i18n="notify.newsSub">Novità rilevanti quando apri l'app.</span></span>
+      </label>
+      <p style="color:var(--muted);font-size:11.5px;line-height:1.5;margin-top:16px;" data-i18n="notify.note">Le preferenze vengono salvate nel tuo profilo. Le notifiche push in background richiedono il servizio FCM già configurato.</p>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1059,7 +1190,7 @@ const REGION = "IT";
 const I18N = {
   it: {
     "nav.home":"Home", "nav.popular":"🔥 Popolari", "nav.search":"Cerca", "nav.favorites":"Preferiti",
-    "btn.recommended":"Consigliati", "btn.upcoming":"Uscite", "btn.calendar":"Calendario", "btn.universes":"Universi", "btn.mood":"Mood",
+    "btn.recommended":"Consigliati", "btn.upcoming":"Uscite", "btn.news":"News", "btn.calendar":"Calendario", "btn.universes":"Universi", "btn.mood":"Mood",
     "tabs.all":"Tutti", "tabs.movies":"Film", "tabs.tv":"Serie TV",
     "filter.sort":"Ordina per", "filter.from":"Dal", "filter.to":"Al", "filter.minRating":"Voto minimo",
     "filter.searchTitle":"Cerca per titolo", "filter.type":"Tipo", "filter.actor":"Attore / Attrice",
@@ -1078,6 +1209,7 @@ const I18N = {
     "cal.title":"Calendario episodi", "cal.subtitle":"Prossimi episodi delle serie che segui nei preferiti.", "univ.title":"Universi condivisi", "univ.subtitle":"Saghe e franchise da guardare in ordine, tutti insieme.", "univ.back":"Tutti gli universi",
     "home.thisWeek":"Questa settimana", "home.trending":"🔥 Di tendenza", "home.topRated":"Novità",
     "home.cinema":"🎦 Al cinema", "home.nowLabel":"Al cinema ora", "home.topTrailers":"🎬 Trailer della settimana",
+    "home.continue":"▶ Continua a guardare", "home.continueLabel":"Riprendi da dove eri rimasto",
     "empty.favorites":"Ancora nessun preferito FILTER.", "empty.favoritesHint":"Aggiungine dalla Home o dalla Ricerca toccando il cuore ❤ sulla locandina.",
     "empty.favMovies":"tra i film", "empty.favTv":"tra le serie TV",
     "toast.added":"Aggiunto ai preferiti", "toast.removed":"Rimosso dai preferiti", "toast.syncFail":"⚠️ Salvataggio online non riuscito, riprovo più tardi",
@@ -1093,14 +1225,23 @@ const I18N = {
     "mood.emptyResult":"Nessun risultato con questi filtri: prova ad allargarli.", "mood.chooseFirst":"Scegli prima un mood qui sopra.",
     "mood.choosePartner":"Scegli anche il mood del/la partner per trovare un match.",
     "profile.change":"Cambia profilo", "menu.rename":"Cambia nome", "menu.signOut":"Esci",
+    "menu.platforms":"Le mie piattaforme", "menu.stats":"Il mio CineMood",
     "menu.coffee":"Offrimi un caffè", "menu.notifications":"Attiva notifiche",
+    "platforms.title":"Le mie piattaforme", "platforms.subtitle":"Scegli gli abbonamenti che usi: CineMood li metterà in evidenza nella Home e nei Mood.",
+    "stats.title":"Il tuo CineMood", "stats.subtitle":"Una fotografia delle tue visioni, preferiti e voti.",
+    "news.title":"News & Novità", "news.subtitle":"Aggiornamenti automatici in italiano da TMDB: cinema, serie, trend e trailer.",
+    "notify.title":"Notifiche intelligenti", "notify.subtitle":"Scegli cosa vuoi che CineMood tenga d'occhio per te.",
+    "notify.episodes":"Nuovi episodi", "notify.episodesSub":"Avvisi per le serie che segui nei preferiti.",
+    "notify.streaming":"Uscite streaming", "notify.streamingSub":"Dai priorità alle piattaforme che hai selezionato.",
+    "notify.news":"News CineMood", "notify.newsSub":"Novità rilevanti quando apri l'app.",
+    "notify.note":"Le preferenze vengono salvate nel tuo profilo. Le notifiche push in background richiedono il servizio FCM già configurato.",
     "footer.protect":"🔒 Proteggi il tuo profilo",
     "support.line":"CineMood è un progetto indipendente, gratuito e senza pubblicità.",
     "support.cta":"Offrimi un caffè",
   },
   en: {
     "nav.home":"Home", "nav.popular":"🔥 Popular", "nav.search":"Search", "nav.favorites":"Favorites",
-    "btn.recommended":"For You", "btn.upcoming":"New Releases", "btn.calendar":"Calendar", "btn.universes":"Universes", "btn.mood":"Mood",
+    "btn.recommended":"For You", "btn.upcoming":"New Releases", "btn.news":"News", "btn.calendar":"Calendar", "btn.universes":"Universes", "btn.mood":"Mood",
     "tabs.all":"All", "tabs.movies":"Movies", "tabs.tv":"TV Shows",
     "filter.sort":"Sort by", "filter.from":"From", "filter.to":"To", "filter.minRating":"Min rating",
     "filter.searchTitle":"Search by title", "filter.type":"Type", "filter.actor":"Actor / Actress",
@@ -1119,6 +1260,7 @@ const I18N = {
     "cal.title":"Episode calendar", "cal.subtitle":"Upcoming episodes for the shows in your favorites.", "univ.title":"Shared universes", "univ.subtitle":"Franchises and sagas to watch in order, all in one place.", "univ.back":"All universes",
     "home.thisWeek":"This week", "home.trending":"🔥 Trending", "home.topRated":"New",
     "home.cinema":"🎦 In Theaters", "home.nowLabel":"In theaters now", "home.topTrailers":"🎬 Trailers This Week",
+    "home.continue":"▶ Continue watching", "home.continueLabel":"Pick up where you left off",
     "empty.favorites":"No favorites FILTER yet.", "empty.favoritesHint":"Add some from Home or Search by tapping the ❤ on a poster.",
     "empty.favMovies":"among movies", "empty.favTv":"among TV shows",
     "toast.added":"Added to favorites", "toast.removed":"Removed from favorites", "toast.syncFail":"⚠️ Online save failed, will retry later",
@@ -1134,7 +1276,16 @@ const I18N = {
     "mood.emptyResult":"No results with these filters: try widening them.", "mood.chooseFirst":"Pick a mood above first.",
     "mood.choosePartner":"Pick your partner's mood too, to find a match.",
     "profile.change":"Switch profile", "menu.rename":"Change name", "menu.signOut":"Sign out",
+    "menu.platforms":"My platforms", "menu.stats":"My CineMood",
     "menu.coffee":"Buy me a coffee", "menu.notifications":"Enable notifications",
+    "platforms.title":"My platforms", "platforms.subtitle":"Choose the services you use: CineMood will prioritize them on Home and in Mood.",
+    "stats.title":"My CineMood", "stats.subtitle":"A snapshot of your watching, favorites and ratings.",
+    "news.title":"News & Updates", "news.subtitle":"Automatic updates from TMDB: movies, TV, trends and trailers.",
+    "notify.title":"Smart notifications", "notify.subtitle":"Choose what CineMood should keep an eye on for you.",
+    "notify.episodes":"New episodes", "notify.episodesSub":"Alerts for shows you follow in favorites.",
+    "notify.streaming":"Streaming releases", "notify.streamingSub":"Prioritize the platforms you've selected.",
+    "notify.news":"CineMood news", "notify.newsSub":"Relevant updates when you open the app.",
+    "notify.note":"Preferences are saved to your profile. Background push delivery uses the already configured FCM service.",
     "footer.protect":"🔒 Protect your profile",
     "support.line":"CineMood is an independent project — free and ad-free.",
     "support.cta":"Buy me a coffee",
@@ -1212,6 +1363,13 @@ function platformLogoTag(platform){
   return platform && platform.logo
     ? `<img src="${platform.logo}" alt="" style="width:16px;height:16px;min-width:16px;flex-shrink:0;border-radius:4px;object-fit:contain;vertical-align:-3px;margin-right:5px;display:inline-block;">`
     : "";
+}
+function orderedPlatforms(){
+  const selected = new Set(MY_PLATFORMS.map(Number));
+  return [...PLATFORMS].sort((a,b)=>(selected.has(b.id)?1:0)-(selected.has(a.id)?1:0));
+}
+function selectedProviderQuery(){
+  return MY_PLATFORMS.length ? MY_PLATFORMS.join("|") : "";
 }
 
 const MOODS = [
@@ -1309,6 +1467,8 @@ let WATCHED = { movie:{}, tv:{} };          // id -> true
 let WATCHED_SEASONS = {};                   // tvId -> [seasonNumbers]
 let WATCHED_EPISODES = {};                  // "tvId-seasonNum" -> [episodeNumbers]
 let RATINGS = { movie:{}, tv:{} };          // id -> 1..10 (voto personale)
+let MY_PLATFORMS = [];                       // provider TMDB selezionati dalla persona
+let NOTIFICATION_PREFS = { episodes:true, streaming:true, news:true };
 let cloudOk = true;
 let cloudStateReady = false;  // true solo dopo aver letto con successo lo stato reale da Firestore per QUESTO profilo
 let cloudRetryTimer = null;
@@ -1317,8 +1477,8 @@ let lastSearchItems = [];        // idem per Cerca
 let lastRecommendedItems = [];   // idem per Consigliati
 
 function pKey(base){ return `cinemood-${base}::${CURRENT_PROFILE}`; }
-function emptyProfileData(){ return { displayName:"", favorites:{movie:[],tv:[]}, watched:{movie:{},tv:{}}, watchedSeasons:{}, watchedEpisodes:{}, ratings:{movie:{},tv:{}} }; }
-const PROFILE_DATA_FIELDS = ["displayName","favorites","watched","watchedSeasons","watchedEpisodes","ratings"];
+function emptyProfileData(){ return { displayName:"", favorites:{movie:[],tv:[]}, watched:{movie:{},tv:{}}, watchedSeasons:{}, watchedEpisodes:{}, ratings:{movie:{},tv:{}}, platforms:[], notificationPrefs:{episodes:true,streaming:true,news:true} }; }
+const PROFILE_DATA_FIELDS = ["displayName","favorites","watched","watchedSeasons","watchedEpisodes","ratings","platforms","notificationPrefs"];
 
 function mergeProfileData(remoteRaw, localRaw){
   const remote = { ...emptyProfileData(), ...(remoteRaw||{}) };
@@ -1352,6 +1512,12 @@ function mergeProfileData(remoteRaw, localRaw){
     ratings: {
       movie: { ...(remote.ratings?.movie||{}), ...(local.ratings?.movie||{}) },
       tv: { ...(remote.ratings?.tv||{}), ...(local.ratings?.tv||{}) }
+    },
+    platforms: Array.isArray(localRaw?.platforms) ? [...new Set(local.platforms.map(Number))] : (remote.platforms||[]),
+    notificationPrefs: {
+      episodes: local.notificationPrefs?.episodes ?? remote.notificationPrefs?.episodes ?? true,
+      streaming: local.notificationPrefs?.streaming ?? remote.notificationPrefs?.streaming ?? true,
+      news: local.notificationPrefs?.news ?? remote.notificationPrefs?.news ?? true
     }
   };
 }
@@ -1445,6 +1611,8 @@ async function loadState(){
   WATCHED_SEASONS = data.watchedSeasons || {};
   WATCHED_EPISODES = data.watchedEpisodes || {};
   RATINGS = data.ratings || {movie:{},tv:{}};
+  MY_PLATFORMS = Array.isArray(data.platforms) ? data.platforms.map(Number) : [];
+  NOTIFICATION_PREFS = { episodes:true, streaming:true, news:true, ...(data.notificationPrefs||{}) };
   store.set(pKey("data"), data);
 }
 
@@ -1471,7 +1639,9 @@ function retryCloudStateCheck(){
         watched:WATCHED,
         watchedSeasons:WATCHED_SEASONS,
         watchedEpisodes:WATCHED_EPISODES,
-        ratings:RATINGS
+        ratings:RATINGS,
+        platforms:MY_PLATFORMS,
+        notificationPrefs:NOTIFICATION_PREFS
       };
       const merged = doc.exists ? mergeProfileData(doc.data(), localData) : localData;
 
@@ -1483,6 +1653,8 @@ function retryCloudStateCheck(){
       WATCHED_SEASONS = merged.watchedSeasons || {};
       WATCHED_EPISODES = merged.watchedEpisodes || {};
       RATINGS = merged.ratings || {movie:{},tv:{}};
+      MY_PLATFORMS = Array.isArray(merged.platforms) ? merged.platforms.map(Number) : [];
+      NOTIFICATION_PREFS = { episodes:true, streaming:true, news:true, ...(merged.notificationPrefs||{}) };
       await store.set(pKey("data"), merged);
 
       cloudStateReady = true;
@@ -1497,7 +1669,7 @@ function retryCloudStateCheck(){
 }
 
 async function persistAll(){
-  const data = { displayName:CURRENT_DISPLAY_NAME, favorites:FAVORITES, watched:WATCHED, watchedSeasons:WATCHED_SEASONS, watchedEpisodes:WATCHED_EPISODES, ratings:RATINGS };
+  const data = { displayName:CURRENT_DISPLAY_NAME, favorites:FAVORITES, watched:WATCHED, watchedSeasons:WATCHED_SEASONS, watchedEpisodes:WATCHED_EPISODES, ratings:RATINGS, platforms:MY_PLATFORMS, notificationPrefs:NOTIFICATION_PREFS };
   store.set(pKey("data"), data);
   if(!cloudStateReady){
     // Non abbiamo mai confermato lo stato reale su Firestore per questo profilo in questa sessione:
@@ -1737,14 +1909,20 @@ function populateResultsContainer(container, items, mode){
 /* ================= HOME ================= */
 let usedHomeShelfIds = new Set();
 
+async function buildContinueWatching(){
+  const section = document.getElementById("continueSection");
+  if(section) section.hidden = true;
+}
+
 async function buildHome(){
   usedHomeShelfIds = new Set(); // evita che lo stesso titolo compaia in più scaffali della stessa Home
   buildHeroCarousel();
+  buildContinueWatching();
   buildNowPlaying();
   const wrap = document.getElementById("platformShelves");
   wrap.innerHTML = "";
   if(shelfObserver){ shelfObserver.disconnect(); pendingShelves.clear(); }
-  for(const p of PLATFORMS){
+  for(const p of orderedPlatforms()){
     const block = document.createElement("div");
     block.innerHTML = `
       <div class="section-title">
@@ -1855,7 +2033,7 @@ async function buildHeroCarousel(){
       if(heroDaysBetween(history[key], today) > 45) delete history[key];
     });
 
-    const platformPools = await Promise.all(PLATFORMS.map(async p=>{
+    const platformPools = await Promise.all(orderedPlatforms().map(async p=>{
       try{
         const [m, t] = await Promise.all([
           tmdb("/discover/movie", {
@@ -2854,9 +3032,18 @@ function buildMoodGrid(){
   buildMoodTiles("moodGrid", (key)=>{ selectedMoodKey = key; });
   buildMoodTiles("moodGrid2", (key)=>{ selectedMoodKey2 = key; });
   const platSel = document.getElementById("mood-platform");
-  platSel.innerHTML = `<option value="">Tutte</option>`;
-  PLATFORMS.forEach(p=>{
-    const o = document.createElement("option"); o.value=p.id; o.textContent=p.name; platSel.appendChild(o);
+  platSel.innerHTML = `<option value="">${currentLang==="en"?"All":"Tutte"}</option>`;
+  if(MY_PLATFORMS.length){
+    const mine = document.createElement("option");
+    mine.value = "mine";
+    mine.textContent = currentLang==="en" ? "★ My platforms" : "★ Le mie piattaforme";
+    platSel.appendChild(mine);
+  }
+  orderedPlatforms().forEach(p=>{
+    const o = document.createElement("option");
+    o.value=p.id;
+    o.textContent=(MY_PLATFORMS.includes(p.id)?"★ ":"")+p.name;
+    platSel.appendChild(o);
   });
 }
 
@@ -2887,7 +3074,8 @@ async function runMoodSearch(){
   const mood2 = matchMode ? MOODS.find(m=>m.key===selectedMoodKey2) : null;
   const yearFrom = document.getElementById("mood-year-from").value;
   const yearTo = document.getElementById("mood-year-to").value;
-  const platform = document.getElementById("mood-platform").value;
+  const platformValue = document.getElementById("mood-platform").value;
+  const platform = platformValue==="mine" ? selectedProviderQuery() : platformValue;
   const sort = document.getElementById("mood-sort").value;
   resultsEl.innerHTML = `<div class="loader"><div class="spin"></div>${matchMode?'Cerco un match tra i due mood…':'Ricerca in corso…'}</div>`;
 
