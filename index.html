@@ -541,6 +541,15 @@ button{font-family:inherit;cursor:pointer;}
   color:transparent;font-size:12px;font-weight:900;flex:0 0 auto;
 }
 .ep-check.checked{background:var(--green);border-color:var(--green);color:#0a1a12;}
+.calendar-section-label{
+  margin:18px 0 9px;font-size:11px;font-weight:800;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);
+}
+.calendar-section-label:first-child{margin-top:0;}
+.calendar-finished-row{opacity:.9;}
+.calendar-finished-row .type-tag{
+  background:rgba(76,175,125,.14);border-color:rgba(76,175,125,.38);color:#8fd3ad;
+}
 
 /* ---------- VOTO PERSONALE ---------- */
 .user-rating-row{margin-top:14px;}
@@ -1252,7 +1261,7 @@ const I18N = {
     "mood.yourMood":"Il tuo mood", "mood.partnerMood":"Il mood del/la partner",
     "rec.title":"Consigliati per te", "rec.subtitle":"Basato sui titoli che hai segnato come visti.",
     "upc.title":"Nuove uscite", "upc.subtitle":"Al cinema e in streaming questo mese.", "upc.tabCinema":"🎬 Al cinema", "upc.tabStream":"📺 In streaming",
-    "cal.title":"Calendario episodi", "cal.subtitle":"Prossimi episodi delle serie che segui nei preferiti.", "univ.title":"Universi condivisi", "univ.subtitle":"Saghe e franchise da guardare in ordine, tutti insieme.", "univ.back":"Tutti gli universi",
+    "cal.title":"Calendario episodi", "cal.subtitle":"Prossimi episodi e stagioni concluse delle serie che segui nei preferiti.", "univ.title":"Universi condivisi", "univ.subtitle":"Saghe e franchise da guardare in ordine, tutti insieme.", "univ.back":"Tutti gli universi",
     "home.thisWeek":"Questa settimana", "home.trending":"🔥 Di tendenza", "home.topRated":"Novità",
     "home.cinema":"🎦 Al cinema", "home.nowLabel":"Al cinema ora", "home.topTrailers":"🎬 Trailer della settimana",
     "home.continue":"▶ Continua a guardare", "home.continueLabel":"Riprendi da dove eri rimasto",
@@ -1303,7 +1312,7 @@ const I18N = {
     "mood.yourMood":"Your mood", "mood.partnerMood":"Your partner's mood",
     "rec.title":"Recommended for you", "rec.subtitle":"Based on titles you've marked as watched.",
     "upc.title":"New releases", "upc.subtitle":"In theaters and streaming this month.", "upc.tabCinema":"🎬 In theaters", "upc.tabStream":"📺 Streaming",
-    "cal.title":"Episode calendar", "cal.subtitle":"Upcoming episodes for the shows in your favorites.", "univ.title":"Shared universes", "univ.subtitle":"Franchises and sagas to watch in order, all in one place.", "univ.back":"All universes",
+    "cal.title":"Episode calendar", "cal.subtitle":"Upcoming episodes and completed seasons for the shows in your favorites.", "univ.title":"Shared universes", "univ.subtitle":"Franchises and sagas to watch in order, all in one place.", "univ.back":"All universes",
     "home.thisWeek":"This week", "home.trending":"🔥 Trending", "home.topRated":"New",
     "home.cinema":"🎦 In Theaters", "home.nowLabel":"In theaters now", "home.topTrailers":"🎬 Trailers This Week",
     "home.continue":"▶ Continue watching", "home.continueLabel":"Pick up where you left off",
@@ -4389,6 +4398,79 @@ async function getNextEpisodeForCalendar(show, details){
   return getNextEpisodeFromTvmaze(show.id, today);
 }
 
+async function getTvmazeShowForTmdb(showId){
+  try{
+    const ids = await tmdb(`/tv/${showId}/external_ids`).catch(()=>null);
+    if(!ids) return null;
+    if(ids.imdb_id) return tvmaze(`/lookup/shows?imdb=${encodeURIComponent(ids.imdb_id)}`);
+    if(ids.tvdb_id) return tvmaze(`/lookup/shows?thetvdb=${encodeURIComponent(ids.tvdb_id)}`);
+  }catch(e){}
+  return null;
+}
+
+async function getSeasonCompletionFromTvmaze(showId, today){
+  try{
+    const mazeShow = await getTvmazeShowForTmdb(showId);
+    if(!mazeShow?.id) return null;
+    const seasons = await tvmaze(`/shows/${mazeShow.id}/seasons`);
+    if(!Array.isArray(seasons)) return null;
+
+    const finished = seasons
+      .filter(s=>Number(s.number)>0 && s.endDate && s.endDate<=today)
+      .sort((a,b)=>Number(b.number)-Number(a.number))[0];
+
+    if(!finished) return null;
+    return {
+      season_number:Number(finished.number),
+      end_date:finished.endDate,
+      _source:"tvmaze",
+      _seriesEnded:String(mazeShow.status||"").toLowerCase()==="ended"
+    };
+  }catch(e){
+    console.warn("Stagione conclusa TVmaze non disponibile per", showId, e);
+    return null;
+  }
+}
+
+async function getSeasonCompletionForCalendar(show, details, nextEpisode){
+  const today = heroDayKey();
+  const regularSeasons = (details?.seasons||[])
+    .filter(s=>s.season_number>0 && s.air_date && s.air_date<=today)
+    .sort((a,b)=>b.season_number-a.season_number);
+  const latest = regularSeasons[0];
+  if(!latest) return null;
+
+  try{
+    const seasonData = await tmdb(`/tv/${show.id}/season/${latest.season_number}`);
+    const episodes = (seasonData.episodes||[])
+      .filter(ep=>ep.episode_number>0 && ep.air_date)
+      .sort((a,b)=>a.episode_number-b.episode_number);
+    const last = episodes[episodes.length-1] || null;
+    const futureInSameSeason = episodes.some(ep=>ep.air_date>today);
+
+    // Non dichiariamo chiusa una stagione se c'è già un episodio futuro della stessa stagione.
+    if(!futureInSameSeason && !(nextEpisode && Number(nextEpisode.season_number)===latest.season_number)){
+      const explicitFinale = String(last?.episode_type||"").toLowerCase()==="finale";
+      const wholeSeriesEnded = String(details?.status||"").toLowerCase()==="ended";
+      if(last?.air_date && (explicitFinale || wholeSeriesEnded)){
+        return {
+          season_number:latest.season_number,
+          end_date:last.air_date,
+          _source:"tmdb",
+          _seriesEnded:wholeSeriesEnded
+        };
+      }
+    }
+  }catch(e){}
+
+  // Se TMDB non esplicita il finale, usiamo l'endDate della stagione TVmaze:
+  // è più sicuro che dedurre la fine solo dall'assenza del prossimo episodio.
+  const mazeFinished = await getSeasonCompletionFromTvmaze(show.id, today);
+  if(!mazeFinished) return null;
+  if(nextEpisode && Number(nextEpisode.season_number)===mazeFinished.season_number) return null;
+  return mazeFinished;
+}
+
 async function buildCalendar(){
   const el = document.getElementById("calendarResults");
   const followedShows = FAVORITES.tv;
@@ -4400,64 +4482,115 @@ async function buildCalendar(){
     return;
   }
 
-  el.innerHTML = `<div class="loader"><div class="spin"></div>${currentLang==="en"?"Checking upcoming episodes…":"Controllo i prossimi episodi…"}</div>`;
+  el.innerHTML = `<div class="loader"><div class="spin"></div>${currentLang==="en"?"Checking episodes and season status…":"Controllo episodi e stato delle stagioni…"}</div>`;
 
   try{
     const details = await Promise.all(followedShows.map(s => tmdb(`/tv/${s.id}`).catch(()=>null)));
 
-    // TMDB resta la fonte principale. Solo le serie senza prossimo episodio noto
-    // passano al controllo della stagione e, infine, al fallback TVmaze.
     const upcoming = [];
+    const completed = [];
+
     for(let i=0;i<followedShows.length;i++){
+      const show = followedShows[i];
       const d = details[i];
       if(!d) continue;
-      const ep = await getNextEpisodeForCalendar(followedShows[i], d);
+
+      const ep = await getNextEpisodeForCalendar(show, d);
       if(ep){
-        upcoming.push({
-          show:followedShows[i],
-          ep
-        });
+        upcoming.push({show, ep});
+      }
+
+      const seasonDone = await getSeasonCompletionForCalendar(show, d, ep);
+      if(seasonDone){
+        // Se è già annunciata una stagione successiva, la precedente resta comunque
+        // visibile come conclusa: spiega chiaramente il passaggio tra le due stagioni.
+        completed.push({show, season:seasonDone});
       }
     }
 
-    upcoming.sort((a,b)=> a.ep.air_date.localeCompare(b.ep.air_date));
+    upcoming.sort((a,b)=>a.ep.air_date.localeCompare(b.ep.air_date));
+    completed.sort((a,b)=>(b.season.end_date||"").localeCompare(a.season.end_date||""));
 
     el.innerHTML = "";
-    if(!upcoming.length){
+    if(!upcoming.length && !completed.length){
       el.innerHTML = `<div class="empty">${currentLang==="en"
-        ? "No upcoming episodes are currently announced for the shows you follow."
-        : "Nessun episodio in arrivo annunciato al momento per le serie che segui."}</div>`;
+        ? "No upcoming episodes or completed seasons are currently available for the shows you follow."
+        : "Al momento non risultano né prossimi episodi né stagioni concluse per le serie che segui."}</div>`;
       return;
     }
 
     let usedTvmaze = false;
-    upcoming.forEach(u=>{
-      const row = document.createElement("div");
-      row.className = "fav-row";
-      const poster = posterUrl(u.show.poster_path);
-      const sourceLabel = u.ep._source==="tvmaze" ? " · TVmaze" : "";
-      if(u.ep._source==="tvmaze") usedTvmaze = true;
-      row.innerHTML = `
-        ${poster?`<img src="${poster}" alt="">`:`<div class="noimg-mini">${escHtml(u.show.title)}</div>`}
-        <div class="fav-row-info">
-          <div class="fav-row-title">${escHtml(u.show.title)}</div>
-          <div class="fav-row-sub">
-            <span class="type-tag">S${u.ep.season_number} E${u.ep.episode_number}</span>
-            <span>${formatShortDate(u.ep.air_date)}${sourceLabel}</span>
+
+    if(upcoming.length){
+      const label = document.createElement("div");
+      label.className = "calendar-section-label";
+      label.textContent = currentLang==="en" ? "Upcoming episodes" : "Prossimi episodi";
+      el.appendChild(label);
+
+      upcoming.forEach(u=>{
+        const row = document.createElement("div");
+        row.className = "fav-row";
+        const poster = posterUrl(u.show.poster_path);
+        const sourceLabel = u.ep._source==="tvmaze" ? " · TVmaze" : "";
+        if(u.ep._source==="tvmaze") usedTvmaze = true;
+        row.innerHTML = `
+          ${poster?`<img src="${poster}" alt="">`:`<div class="noimg-mini">${escHtml(u.show.title)}</div>`}
+          <div class="fav-row-info">
+            <div class="fav-row-title">${escHtml(u.show.title)}</div>
+            <div class="fav-row-sub">
+              <span class="type-tag">S${u.ep.season_number} E${u.ep.episode_number}</span>
+              <span>${formatShortDate(u.ep.air_date)}${sourceLabel}</span>
+            </div>
+            ${u.ep.name?`<div style="color:var(--muted);font-size:11.5px;margin-top:4px;">${escHtml(u.ep.name)}</div>`:""}
           </div>
-          ${u.ep.name?`<div style="color:var(--muted);font-size:11.5px;margin-top:4px;">${escHtml(u.ep.name)}</div>`:""}
-        </div>
-      `;
-      row.addEventListener("click", ()=> openDetailFromRow(u.show.id, "tv"));
-      el.appendChild(row);
-    });
+        `;
+        row.addEventListener("click", ()=> openDetailFromRow(u.show.id, "tv"));
+        el.appendChild(row);
+      });
+    }
+
+    if(completed.length){
+      const label = document.createElement("div");
+      label.className = "calendar-section-label";
+      label.textContent = currentLang==="en" ? "Completed seasons" : "Stagioni concluse";
+      el.appendChild(label);
+
+      completed.forEach(u=>{
+        const row = document.createElement("div");
+        row.className = "fav-row calendar-finished-row";
+        const poster = posterUrl(u.show.poster_path);
+        const sourceLabel = u.season._source==="tvmaze" ? " · TVmaze" : "";
+        if(u.season._source==="tvmaze") usedTvmaze = true;
+
+        const statusText = currentLang==="en"
+          ? `Season ${u.season.season_number} completed`
+          : `Stagione ${u.season.season_number} conclusa`;
+        const seriesText = u.season._seriesEnded
+          ? (currentLang==="en" ? " · Series ended" : " · Serie conclusa")
+          : "";
+
+        row.innerHTML = `
+          ${poster?`<img src="${poster}" alt="">`:`<div class="noimg-mini">${escHtml(u.show.title)}</div>`}
+          <div class="fav-row-info">
+            <div class="fav-row-title">${escHtml(u.show.title)}</div>
+            <div class="fav-row-sub">
+              <span class="type-tag">✓ ${escHtml(statusText)}</span>
+              <span>${formatShortDate(u.season.end_date)}${sourceLabel}</span>
+            </div>
+            <div style="color:var(--muted);font-size:11.5px;margin-top:4px;">${currentLang==="en"?"No more episodes are expected for this season":"Non sono previsti altri episodi per questa stagione"}${seriesText}</div>
+          </div>
+        `;
+        row.addEventListener("click", ()=> openDetailFromRow(u.show.id, "tv"));
+        el.appendChild(row);
+      });
+    }
 
     if(usedTvmaze){
       const credit = document.createElement("p");
       credit.style.cssText = "color:var(--muted);font-size:10.5px;line-height:1.45;margin:14px 2px 0;";
       credit.innerHTML = currentLang==="en"
-        ? 'Some fallback episode dates are provided by <a href="https://www.tvmaze.com/" target="_blank" rel="noopener" style="color:var(--gold);">TVmaze</a> (CC BY-SA).'
-        : 'Alcune date episodio di fallback sono fornite da <a href="https://www.tvmaze.com/" target="_blank" rel="noopener" style="color:var(--gold);">TVmaze</a> (CC BY-SA).';
+        ? 'Some fallback episode and season dates are provided by <a href="https://www.tvmaze.com/" target="_blank" rel="noopener" style="color:var(--gold);">TVmaze</a> (CC BY-SA).'
+        : 'Alcune date episodio e fine stagione di fallback sono fornite da <a href="https://www.tvmaze.com/" target="_blank" rel="noopener" style="color:var(--gold);">TVmaze</a> (CC BY-SA).';
       el.appendChild(credit);
     }
   }catch(e){
