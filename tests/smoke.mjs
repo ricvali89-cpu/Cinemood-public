@@ -94,6 +94,9 @@ assert(index.includes("buildContinueWatching();"), "Continua a guardare non coll
 assert(index.includes("async function tvmaze("), "Fallback TVmaze per calendario mancante");
 assert(index.includes("getNextEpisodeFromTmdbSeasons"), "Fallback stagioni TMDB per calendario mancante");
 assert(index.includes("getNextEpisodeFromTvmaze"), "Fallback episodio TVmaze non collegato");
+assert(index.includes("getSeasonCompletionForCalendar"), "Rilevamento stagione conclusa mancante");
+assert(index.includes("Stagioni concluse"), "Sezione stagioni concluse mancante dal calendario");
+assert(index.includes("calendar-finished-row"), "Stile stato stagione conclusa mancante");
 assert(index.includes('id="openNews"'), "Ingresso News mancante");
 assert(index.includes("TMDB ·"), "Fonte TMDB non mostrata nelle News");
 assert(index.includes("HERO_ROTATION_DAYS"), "Rotazione dinamica carosello mancante");
