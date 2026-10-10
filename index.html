@@ -1775,6 +1775,42 @@ async function tmdb(path, params={}){
   return promise;
 }
 
+// Fallback calendario TV: TVmaze espone gratuitamente date episodio e lookup per IMDb/TVDB.
+// Viene interrogato solo quando TMDB non conosce il prossimo episodio.
+const TVMAZE_CACHE_TTL = 12 * 60 * 60 * 1000;
+const TVMAZE_MIN_INTERVAL_MS = 550; // resta sotto il limite pubblico di 20 richieste / 10 secondi
+let tvmazeLastRequestAt = 0;
+const tvmazeMemoryCache = new Map();
+
+async function tvmaze(path){
+  const url = "https://api.tvmaze.com" + path;
+  const now = Date.now();
+  const memory = tvmazeMemoryCache.get(url);
+  if(memory && now - memory.time < TVMAZE_CACHE_TTL) return memory.value;
+
+  const storageKey = "cinemood-tvmaze-" + heroHash(url);
+  try{
+    const stored = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if(stored && now - stored.time < TVMAZE_CACHE_TTL){
+      tvmazeMemoryCache.set(url, {time:stored.time, value:stored.value});
+      return stored.value;
+    }
+  }catch(e){}
+
+  const wait = Math.max(0, TVMAZE_MIN_INTERVAL_MS - (Date.now() - tvmazeLastRequestAt));
+  if(wait) await new Promise(resolve=>setTimeout(resolve, wait));
+  tvmazeLastRequestAt = Date.now();
+
+  const res = await fetch(url, {headers:{Accept:"application/json"}});
+  if(res.status===404) return null;
+  if(!res.ok) throw new Error("TVmaze error "+res.status);
+  const value = await res.json();
+
+  tvmazeMemoryCache.set(url, {time:Date.now(), value});
+  try{ localStorage.setItem(storageKey, JSON.stringify({time:Date.now(), value})); }catch(e){}
+  return value;
+}
+
 // Voti esterni (IMDb / Rotten Tomatoes / Metacritic) via OMDb, con cache locale
 // per non consumare inutilmente le 1.000 richieste gratuite giornaliere.
 async function getExternalRatings(imdbId){
@@ -4278,55 +4314,155 @@ document.getElementById("openCalendar").addEventListener("click", ()=>{
 document.getElementById("calendarClose").addEventListener("click", ()=> closeOverlayViaHistory(calendarOverlay));
 calendarOverlay.addEventListener("click", e=>{ if(e.target===calendarOverlay) closeOverlayViaHistory(calendarOverlay); });
 
+async function getNextEpisodeFromTmdbSeasons(showId, details, today){
+  const seasons = (details?.seasons||[])
+    .filter(s=>s.season_number>0 && s.episode_count>0)
+    .sort((a,b)=>b.season_number-a.season_number)
+    .slice(0,3);
+
+  const candidates = [];
+  for(const season of seasons){
+    try{
+      const data = await tmdb(`/tv/${showId}/season/${season.season_number}`);
+      (data.episodes||[]).forEach(ep=>{
+        if(ep.air_date && ep.air_date>=today){
+          candidates.push({
+            season_number:season.season_number,
+            episode_number:ep.episode_number,
+            name:ep.name||"",
+            air_date:ep.air_date,
+            _source:"tmdb-season"
+          });
+        }
+      });
+    }catch(e){}
+  }
+  return candidates.sort((a,b)=>a.air_date.localeCompare(b.air_date))[0] || null;
+}
+
+async function getNextEpisodeFromTvmaze(showId, today){
+  try{
+    const ids = await tmdb(`/tv/${showId}/external_ids`).catch(()=>null);
+    if(!ids) return null;
+
+    let mazeShow = null;
+    if(ids.imdb_id){
+      mazeShow = await tvmaze(`/lookup/shows?imdb=${encodeURIComponent(ids.imdb_id)}`);
+    } else if(ids.tvdb_id){
+      mazeShow = await tvmaze(`/lookup/shows?thetvdb=${encodeURIComponent(ids.tvdb_id)}`);
+    }
+    if(!mazeShow?.id) return null;
+
+    const episodes = await tvmaze(`/shows/${mazeShow.id}/episodes`);
+    if(!Array.isArray(episodes)) return null;
+
+    const ep = episodes
+      .filter(x=>x.airdate && x.airdate>=today && Number.isFinite(Number(x.season)) && Number.isFinite(Number(x.number)))
+      .sort((a,b)=>a.airdate.localeCompare(b.airdate))[0];
+
+    if(!ep) return null;
+    return {
+      season_number:Number(ep.season),
+      episode_number:Number(ep.number),
+      name:ep.name||"",
+      air_date:ep.airdate,
+      _source:"tvmaze",
+      _tvmazeShowUrl:mazeShow.url||"https://www.tvmaze.com/"
+    };
+  }catch(e){
+    console.warn("Fallback TVmaze non disponibile per", showId, e);
+    return null;
+  }
+}
+
+async function getNextEpisodeForCalendar(show, details){
+  const today = heroDayKey();
+
+  const direct = details?.next_episode_to_air;
+  if(direct?.air_date && direct.air_date>=today){
+    return {...direct, _source:"tmdb"};
+  }
+
+  const fromSeason = await getNextEpisodeFromTmdbSeasons(show.id, details, today);
+  if(fromSeason) return fromSeason;
+
+  return getNextEpisodeFromTvmaze(show.id, today);
+}
+
 async function buildCalendar(){
   const el = document.getElementById("calendarResults");
   const followedShows = FAVORITES.tv;
 
   if(!followedShows.length){
-    el.innerHTML = `<div class="empty">Non hai ancora serie TV nei preferiti.<br>Aggiungine qualcuna per vedere qui i prossimi episodi in arrivo.</div>`;
+    el.innerHTML = `<div class="empty">${currentLang==="en"
+      ? "You don't have any TV shows in favorites yet.<br>Add some to see upcoming episodes here."
+      : "Non hai ancora serie TV nei preferiti.<br>Aggiungine qualcuna per vedere qui i prossimi episodi in arrivo."}</div>`;
     return;
   }
 
-  el.innerHTML = `<div class="loader"><div class="spin"></div>Controllo i prossimi episodi…</div>`;
+  el.innerHTML = `<div class="loader"><div class="spin"></div>${currentLang==="en"?"Checking upcoming episodes…":"Controllo i prossimi episodi…"}</div>`;
 
   try{
     const details = await Promise.all(followedShows.map(s => tmdb(`/tv/${s.id}`).catch(()=>null)));
+
+    // TMDB resta la fonte principale. Solo le serie senza prossimo episodio noto
+    // passano al controllo della stagione e, infine, al fallback TVmaze.
     const upcoming = [];
-    details.forEach((d, i)=>{
-      if(d && d.next_episode_to_air && d.next_episode_to_air.air_date){
+    for(let i=0;i<followedShows.length;i++){
+      const d = details[i];
+      if(!d) continue;
+      const ep = await getNextEpisodeForCalendar(followedShows[i], d);
+      if(ep){
         upcoming.push({
-          show: followedShows[i],
-          ep: d.next_episode_to_air
+          show:followedShows[i],
+          ep
         });
       }
-    });
+    }
+
     upcoming.sort((a,b)=> a.ep.air_date.localeCompare(b.ep.air_date));
 
     el.innerHTML = "";
     if(!upcoming.length){
-      el.innerHTML = `<div class="empty">Nessun episodio in arrivo annunciato al momento per le serie che segui.</div>`;
+      el.innerHTML = `<div class="empty">${currentLang==="en"
+        ? "No upcoming episodes are currently announced for the shows you follow."
+        : "Nessun episodio in arrivo annunciato al momento per le serie che segui."}</div>`;
       return;
     }
 
+    let usedTvmaze = false;
     upcoming.forEach(u=>{
       const row = document.createElement("div");
       row.className = "fav-row";
       const poster = posterUrl(u.show.poster_path);
+      const sourceLabel = u.ep._source==="tvmaze" ? " · TVmaze" : "";
+      if(u.ep._source==="tvmaze") usedTvmaze = true;
       row.innerHTML = `
-        ${poster?`<img src="${poster}" alt="">`:`<div class="noimg-mini">${u.show.title}</div>`}
+        ${poster?`<img src="${poster}" alt="">`:`<div class="noimg-mini">${escHtml(u.show.title)}</div>`}
         <div class="fav-row-info">
-          <div class="fav-row-title">${u.show.title}</div>
+          <div class="fav-row-title">${escHtml(u.show.title)}</div>
           <div class="fav-row-sub">
             <span class="type-tag">S${u.ep.season_number} E${u.ep.episode_number}</span>
-            <span>${formatShortDate(u.ep.air_date)}</span>
+            <span>${formatShortDate(u.ep.air_date)}${sourceLabel}</span>
           </div>
+          ${u.ep.name?`<div style="color:var(--muted);font-size:11.5px;margin-top:4px;">${escHtml(u.ep.name)}</div>`:""}
         </div>
       `;
       row.addEventListener("click", ()=> openDetailFromRow(u.show.id, "tv"));
       el.appendChild(row);
     });
+
+    if(usedTvmaze){
+      const credit = document.createElement("p");
+      credit.style.cssText = "color:var(--muted);font-size:10.5px;line-height:1.45;margin:14px 2px 0;";
+      credit.innerHTML = currentLang==="en"
+        ? 'Some fallback episode dates are provided by <a href="https://www.tvmaze.com/" target="_blank" rel="noopener" style="color:var(--gold);">TVmaze</a> (CC BY-SA).'
+        : 'Alcune date episodio di fallback sono fornite da <a href="https://www.tvmaze.com/" target="_blank" rel="noopener" style="color:var(--gold);">TVmaze</a> (CC BY-SA).';
+      el.appendChild(credit);
+    }
   }catch(e){
-    el.innerHTML = `<div class="empty">Errore nel caricamento del calendario.</div>`;
+    console.error("Errore calendario episodi.", e);
+    el.innerHTML = `<div class="empty">${currentLang==="en"?"Error loading the calendar.":"Errore nel caricamento del calendario."}</div>`;
   }
 }
 
