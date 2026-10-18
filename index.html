@@ -793,6 +793,7 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
 <script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.11.0/firebase-messaging-compat.js"></script>
+<script src="cinemood-personal-sync.js"></script>
 </head>
 <body>
 
@@ -1530,6 +1531,7 @@ let MY_PLATFORMS = [];                       // provider TMDB selezionati dalla 
 let NOTIFICATION_PREFS = { episodes:true, streaming:true, news:true };
 let cloudOk = true;
 let cloudStateReady = false;  // true solo dopo aver letto con successo lo stato reale da Firestore per QUESTO profilo
+let PUBLIC_PERSONAL_SYNC = null;
 let cloudRetryTimer = null;
 let lastPopularItems = [];       // ultimi risultati mostrati in Popolari (per cambiare vista senza rifare la ricerca)
 let lastSearchItems = [];        // idem per Cerca
@@ -1673,6 +1675,7 @@ async function loadState(){
   MY_PLATFORMS = Array.isArray(data.platforms) ? data.platforms.map(Number) : [];
   NOTIFICATION_PREFS = { episodes:true, streaming:true, news:true, ...(data.notificationPrefs||{}) };
   store.set(pKey("data"), data);
+  if(cloudStateReady) startPublicRealtimeSync(data);
 }
 
 // Riprova periodicamente a confermare la connessione a Firestore per questo profilo.
@@ -1718,6 +1721,7 @@ function retryCloudStateCheck(){
 
       cloudStateReady = true;
       cloudOk = true;
+      startPublicRealtimeSync(merged);
       clearInterval(cloudRetryTimer);
       cloudRetryTimer = null;
       renderFavorites();
@@ -1739,6 +1743,11 @@ async function persistAll(){
     retryCloudStateCheck();
     return;
   }
+  if(PUBLIC_PERSONAL_SYNC?.ready && PUBLIC_PERSONAL_SYNC.uid === CURRENT_PROFILE){
+    PUBLIC_PERSONAL_SYNC.persist(data);
+    return;
+  }
+  // La scrittura completa legacy resta il fallback soltanto prima dell'avvio del listener.
   try{
     await db.collection("profiles").doc(CURRENT_PROFILE).set(data, { mergeFields:PROFILE_DATA_FIELDS });
     cloudOk = true;
@@ -1747,6 +1756,35 @@ async function persistAll(){
     cloudOk = false;
     toast(t("toast.syncFail"));
   }
+}
+
+function startPublicRealtimeSync(initialData){
+  if(PUBLIC_PERSONAL_SYNC) PUBLIC_PERSONAL_SYNC.close();
+  const uid=CURRENT_PROFILE;
+  PUBLIC_PERSONAL_SYNC=new CineMoodPersonalSync(db,uid,{
+    extras:true,
+    apply(remote){
+      if(CURRENT_PROFILE!==uid)return;
+      CURRENT_DISPLAY_NAME=remote.displayName||"";
+      FAVORITES=remote.favorites;
+      WATCHED=remote.watched;
+      WATCHED_SEASONS=remote.watchedSeasons;
+      WATCHED_EPISODES=remote.watchedEpisodes;
+      RATINGS=remote.ratings;
+      MY_PLATFORMS=remote.platforms||[];
+      NOTIFICATION_PREFS={episodes:true,streaming:true,news:true,...remote.notificationPrefs};
+      store.set(pKey("data"),remote);
+      const btn=document.getElementById("switchProfileBtn");
+      if(btn && CURRENT_DISPLAY_NAME)btn.textContent=CURRENT_DISPLAY_NAME[0].toUpperCase();
+      renderFavorites();
+      refreshAllCardStates();
+      if(typeof buildContinueWatching==="function")buildContinueWatching();
+    },
+    status(message){
+      if(message.startsWith("Sync in attesa"))console.warn(message);
+    }
+  });
+  PUBLIC_PERSONAL_SYNC.begin(initialData);
 }
 
 /* ================= TMDB HELPERS ================= */
