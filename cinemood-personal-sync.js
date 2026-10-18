@@ -105,14 +105,24 @@
       this.options=options;
       this.last=null;
       this.queue=[];
+      this.inflightOps=[];
+      this.pendingKey='cinemood-personal-sync-pending-'+uid;
       this.busy=false;
       this.ready=false;
       this.unsubscribe=null;
       this.retryTimer=null;
     }
+    savePending(){
+      try{localStorage.setItem(this.pendingKey,JSON.stringify([...this.inflightOps,...this.queue]));}
+      catch(e){this.options.status?.('Spazio locale non disponibile per la coda di sincronizzazione');}
+    }
     begin(data){
       if(this.unsubscribe) this.unsubscribe();
       this.last=normalize(data);
+      try{
+        const stored=JSON.parse(localStorage.getItem(this.pendingKey)||'[]');
+        if(Array.isArray(stored))this.queue.unshift(...stored);
+      }catch(e){this.options.status?.('Coda di sincronizzazione locale non leggibile');}
       this.ready=true;
       this.unsubscribe=this.ref.onSnapshot(snap=>{
         if(!snap.exists || snap.metadata.hasPendingWrites || this.busy || this.queue.length)return;
@@ -121,6 +131,7 @@
         this.last=clone(remote);
         this.options.apply(clone(remote));
       },err=>this.options.status?.('Errore sincronizzazione: '+err.code));
+      if(this.queue.length)this.flush();
     }
     async connectPrivate(privateData){
       // La prima unione avviene una sola volta per questo UID, non a ogni accesso.
@@ -159,6 +170,7 @@
       this.last=clone(next);
       if(ops.length){
         this.queue.push(...ops);
+        this.savePending();
         this.flush();
       }
       return true;
@@ -169,6 +181,8 @@
       let failure=false;
       while(this.queue.length){
         const batch=this.queue.splice(0);
+        this.inflightOps=batch;
+        this.savePending();
         try{
           await this.db.runTransaction(async tx=>{
             const snap=await tx.get(this.ref);
@@ -181,9 +195,13 @@
             for(const field of touched)patch[field]=updated[field];
             tx.set(this.ref,patch,{mergeFields:[...touched]});
           });
+          this.inflightOps=[];
+          this.savePending();
           this.options.status?.('Sincronizzato');
         }catch(e){
+          this.inflightOps=[];
           this.queue.unshift(...batch);
+          this.savePending();
           this.options.status?.('Sync in attesa: '+(e.code || 'connessione non disponibile'));
           failure=true;
           break;
@@ -211,5 +229,6 @@
       this.ready=false;
     }
   }
+  CineMoodPersonalSync.difference=difference;
   window.CineMoodPersonalSync=CineMoodPersonalSync;
 })();
