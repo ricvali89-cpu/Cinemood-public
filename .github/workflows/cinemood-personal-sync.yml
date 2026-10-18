@@ -29,12 +29,30 @@ jobs:
         run: |
           set -euo pipefail
           # OIDC is short-lived and never printed to job logs or saved as an artifact.
-          response="$(curl --fail --silent --show-error --retry 2 --max-time 15 \
+          oidc_status="$(curl --silent --show-error --retry 2 --max-time 15 \
+            -o "${RUNNER_TEMP}/cinemood-oidc.json" -w '%{http_code}' \
             -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
             --get --data-urlencode "audience=${SYNC_URL}" \
             "${ACTIONS_ID_TOKEN_REQUEST_URL}")"
-          jwt="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "${response}")"
-          curl --fail-with-body --silent --show-error --max-time 240 \
+          if [[ "${oidc_status}" != "200" ]]; then
+            echo "::error::GitHub OIDC token request: HTTP ${oidc_status}"
+            exit 1
+          fi
+          jwt="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' \
+            < "${RUNNER_TEMP}/cinemood-oidc.json")"
+          echo "::add-mask::${jwt}"
+          worker_status="$(curl --silent --show-error --max-time 240 \
+            -o "${RUNNER_TEMP}/cinemood-worker.json" -w '%{http_code}' \
             -H "Authorization: Bearer ${jwt}" \
             -H "Accept: application/json" \
-            "${SYNC_URL}"
+            "${SYNC_URL}")"
+          echo "CineMood worker: HTTP ${worker_status}"
+          if [[ "${worker_status}" == "200" || "${worker_status}" == "207" ]]; then
+            cat "${RUNNER_TEMP}/cinemood-worker.json"
+            if [[ "${worker_status}" == "207" ]]; then
+              echo "::warning::Some sync operations remain pending"
+            fi
+          else
+            echo "::error::CineMood worker rejected: HTTP ${worker_status}"
+            exit 1
+          fi
