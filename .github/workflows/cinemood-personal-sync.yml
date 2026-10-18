@@ -44,6 +44,7 @@ jobs:
           worker_status="$(curl --silent --show-error --max-time 240 \
             -o "${RUNNER_TEMP}/cinemood-worker.json" -w '%{http_code}' \
             -H "Authorization: Bearer ${jwt}" \
+            -H "x-vercel-trusted-oidc-idp-token: ${jwt}" \
             -H "Accept: application/json" \
             "${SYNC_URL}")"
           echo "CineMood worker: HTTP ${worker_status}"
