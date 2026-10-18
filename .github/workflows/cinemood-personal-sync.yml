@@ -41,13 +41,41 @@ jobs:
           jwt="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' \
             < "${RUNNER_TEMP}/cinemood-oidc.json")"
           echo "::add-mask::${jwt}"
+          # Vercel Trusted Sources expects GitHub's default OIDC audience.
+          # Keep the endpoint-specific token above exclusively for app-level auth.
+          vercel_oidc_status="$(curl --silent --show-error --retry 2 --max-time 15 \
+            -o "${RUNNER_TEMP}/cinemood-vercel-oidc.json" -w '%{http_code}' \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}")"
+          if [[ "${vercel_oidc_status}" != "200" ]]; then
+            echo "::error::Default GitHub OIDC token: HTTP ${vercel_oidc_status}"
+            exit 1
+          fi
+          vercel_jwt="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' \
+            < "${RUNNER_TEMP}/cinemood-vercel-oidc.json")"
+          echo "::add-mask::${vercel_jwt}"
           worker_status="$(curl --silent --show-error --max-time 240 \
+            -D "${RUNNER_TEMP}/cinemood-worker-headers.txt" \
             -o "${RUNNER_TEMP}/cinemood-worker.json" -w '%{http_code}' \
             -H "Authorization: Bearer ${jwt}" \
-            -H "x-vercel-trusted-oidc-idp-token: ${jwt}" \
+            -H "x-vercel-trusted-oidc-idp-token: ${vercel_jwt}" \
             -H "Accept: application/json" \
             "${SYNC_URL}")"
           echo "CineMood worker: HTTP ${worker_status}"
+          if [[ "${worker_status}" != "200" && "${worker_status}" != "207" ]]; then
+            # Report only an allowlisted JSON error code or Vercel's content type.
+            # Never print headers, response HTML or any token.
+            python3 - "${RUNNER_TEMP}/cinemood-worker.json" "${RUNNER_TEMP}/cinemood-worker-headers.txt" <<'PY'
+          import json, sys
+          try:
+              body = json.load(open(sys.argv[1]))
+              error = body.get("error", "")
+              print("Backend error:", error if error in ("unauthorized", "configuration_required", "personal_sync_unavailable") else "unknown")
+          except (ValueError, OSError, AttributeError):
+              headers = open(sys.argv[2]).read().lower()
+              print("Response format:", "html" if "content-type: text/html" in headers else "other")
+          PY
+          fi
           if [[ "${worker_status}" == "200" || "${worker_status}" == "207" ]]; then
             cat "${RUNNER_TEMP}/cinemood-worker.json"
             if [[ "${worker_status}" == "207" ]]; then
