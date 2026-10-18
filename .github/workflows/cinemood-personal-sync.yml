@@ -1,0 +1,40 @@
+# Public scheduler only: no Firebase, Notion or Emby credentials live here.
+# The private Vercel endpoint verifies GitHub's signed OIDC token, repository,
+# branch and exact workflow identity before running a synchronization.
+name: CineMood personal sync
+
+on:
+  schedule:
+    # Every 10 minutes, offset to avoid peak loads at the top of each hour.
+    - cron: '7,17,27,37,47,57 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cinemood-personal-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Trigger authenticated personal sync
+        shell: bash
+        env:
+          SYNC_URL: https://cinemood-privato.vercel.app/api/personal-cron
+        run: |
+          set -euo pipefail
+          # OIDC is short-lived and never printed to job logs or saved as an artifact.
+          response="$(curl --fail --silent --show-error --retry 2 --max-time 15 \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            --get --data-urlencode "audience=${SYNC_URL}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}")"
+          jwt="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<< "${response}")"
+          curl --fail-with-body --silent --show-error --max-time 240 \
+            -H "Authorization: Bearer ${jwt}" \
+            -H "Accept: application/json" \
+            "${SYNC_URL}"
