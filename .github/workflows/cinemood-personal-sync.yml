@@ -3,10 +3,9 @@
 # branch and exact workflow identity before running a synchronization.
 name: CineMood personal sync
 
+# Automatic cadence temporarily paused until Vercel Trusted Sources
+# authorizes this exact GitHub workflow. Re-enable after a successful manual test.
 on:
-  schedule:
-    # Every 10 minutes, offset to avoid peak loads at the top of each hour.
-    - cron: '7,17,27,37,47,57 * * * *'
   workflow_dispatch:
 
 permissions:
