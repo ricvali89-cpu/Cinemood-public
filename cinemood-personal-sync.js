@@ -127,11 +127,17 @@
       const before=await this.ref.get({source:'server'});
       if(!before.exists)throw Error('Prima accedi a CineMood pubblico con questo account Google.');
       const previous=before.data();
-      try{
-        localStorage.setItem('cinemood-link-backup-'+this.uid,JSON.stringify({
-          createdAt:new Date().toISOString(),private:privateData,public:previous
-        }));
-      }catch(e){throw Error('Backup locale non riuscito: collegamento annullato.');}
+      // Non sovrascrivere il backup pre-unione quando l'utente riapre l'app.
+      if(previous.cinemoodPrivateLink?.version!==1){
+        try{
+          const backupKey='cinemood-link-backup-'+this.uid;
+          if(!localStorage.getItem(backupKey)){
+            localStorage.setItem(backupKey,JSON.stringify({
+              createdAt:new Date().toISOString(),private:privateData,public:previous
+            }));
+          }
+        }catch(e){throw Error('Backup locale non riuscito: collegamento annullato.');}
+      }
       await this.db.runTransaction(async tx=>{
         const snap=await tx.get(this.ref);
         if(!snap.exists)throw Error('Profilo pubblico non trovato.');
