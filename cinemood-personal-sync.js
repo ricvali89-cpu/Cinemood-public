@@ -166,6 +166,18 @@
     persist(current){
       if(!this.ready)return false;
       const next=normalize(current);
+      // Wishlist: a newly watched title must leave favorites atomically.
+      // Never remove old favorites retroactively or re-add one on "unwatch".
+      let moved=false;
+      for(const type of ['movie','tv']){
+        for(const [id,seen] of Object.entries(next.watched[type])){
+          if(seen!==true || this.last?.watched?.[type]?.[id]===true)continue;
+          const original=next.favorites[type];
+          next.favorites[type]=original.filter(item=>String(item.id)!==String(id));
+          if(next.favorites[type].length!==original.length)moved=true;
+        }
+      }
+      if(moved)this.options.apply(clone(next));
       const ops=difference(this.last,next,!!this.options.extras);
       this.last=clone(next);
       if(ops.length){
