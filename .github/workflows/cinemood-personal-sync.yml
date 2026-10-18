@@ -3,10 +3,9 @@
 # branch and exact workflow identity before running a synchronization.
 name: CineMood personal sync
 
-# Run every 10 minutes. GitHub may delay scheduled executions.
+# Automatic schedule moved to Cloudflare Workers Cron Trigger.
+# Retain a manual-only diagnostic workflow to avoid duplicate sync executions.
 on:
-  schedule:
-    - cron: '9,19,29,39,49,59 * * * *'
   workflow_dispatch:
 
 permissions:
