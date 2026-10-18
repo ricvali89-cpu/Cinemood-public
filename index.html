@@ -1914,8 +1914,13 @@ function toggleFavorite(item, mediaType){
 function toggleWatched(mediaType, id){
   WATCHED[mediaType][id] = !WATCHED[mediaType][id];
   if(!WATCHED[mediaType][id]) delete WATCHED[mediaType][id];
+  else {
+    // I preferiti sono la wishlist: passando a visto, il titolo esce dalla lista da vedere.
+    FAVORITES[mediaType] = FAVORITES[mediaType].filter(item=>String(item.id)!==String(id));
+  }
   persistAll();
   refreshAllCardStates();
+  renderFavorites();
   if(mediaType==="tv") buildContinueWatching();
 }
 
