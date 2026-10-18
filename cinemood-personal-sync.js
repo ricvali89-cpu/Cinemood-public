@@ -193,6 +193,19 @@
             for(const op of batch)touched.add(op.kind==='extra'?op.key:
               op.kind==='fav'?'favorites':op.kind);
             for(const field of touched)patch[field]=updated[field];
+            // A confirmed explicit "non visto" must not be undone by importing old Emby history.
+            // Store only the touched watch IDs and an ordering timestamp, never a list of unseen titles.
+            const watchOps=batch.filter(op=>op.kind==='watched');
+            if(watchOps.length){
+              const overrides={...(snap.data().cinemoodWatchOverrides||{})};
+              const now=new Date().toISOString();
+              for(const op of watchOps){
+                if(!['movie','tv'].includes(op.type)||!/^[0-9]+$/.test(String(op.id)))continue;
+                overrides[op.type+':'+op.id]={watched:op.value===true,updatedAt:now};
+              }
+              patch.cinemoodWatchOverrides=overrides;
+              touched.add('cinemoodWatchOverrides');
+            }
             tx.set(this.ref,patch,{mergeFields:[...touched]});
           });
           this.inflightOps=[];
