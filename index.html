@@ -5367,6 +5367,7 @@ async function runImportTitles(){
   found.forEach(f=>{
     if(mode === "watched"){
       WATCHED[f.mediaType][f.match.id] = true;
+      FAVORITES[f.mediaType] = FAVORITES[f.mediaType].filter(item=>String(item.id)!==String(f.match.id));
     } else {
       const list = FAVORITES[f.mediaType];
       if(!list.some(x=>x.id===f.match.id)){
