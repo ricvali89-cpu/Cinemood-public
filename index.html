@@ -640,6 +640,16 @@ button{font-family:inherit;cursor:pointer;}
   letter-spacing:.06em;color:var(--muted);
 }
 .person-top-row{display:flex;gap:12px;overflow-x:auto;padding:4px 0 10px;}
+.search-people-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:10px 0 18px;}
+.search-person-card{display:flex;align-items:center;gap:12px;min-width:0;min-height:95px;padding:10px;text-align:left;cursor:pointer;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);font:inherit;}
+.search-person-card:hover{border-color:var(--gold-dim);background:var(--surface-2);}
+.search-person-card:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.search-person-photo{width:56px;height:74px;object-fit:cover;border-radius:8px;background:var(--surface-2);flex-shrink:0;}
+.search-person-placeholder{display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--gold);}
+.search-person-info{min-width:0;display:flex;flex-direction:column;gap:5px;}
+.search-person-name{font-size:14px;font-weight:750;overflow-wrap:anywhere;}
+.search-person-job{font-size:12px;color:var(--muted);}
+.search-person-link{font-size:12px;color:var(--gold);font-weight:650;}
 .person-top-row .card{min-width:145px;width:145px;}
 .person-filmography-head{
   display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap;
@@ -2638,6 +2648,57 @@ document.getElementById("f-rating").addEventListener("input", e=>{
   document.getElementById("f-rating-val").textContent = e.target.value;
 });
 
+function renderSearchPeople(people){
+  const section=document.createElement("section");
+  section.className="search-people-section";
+  const heading=document.createElement("h3");
+  heading.className="person-section-title";
+  heading.textContent=currentLang==="en"?"People":"Persone";
+  section.appendChild(heading);
+  const grid=document.createElement("div");
+  grid.className="search-people-grid";
+  people.forEach(person=>{
+    const director=person.known_for_department==="Directing";
+    const card=document.createElement("button");
+    card.type="button";
+    card.className="search-person-card";
+    card.setAttribute("aria-label",(currentLang==="en"?"Open profile: ":"Apri scheda di ")+person.name);
+    if(person.profile_path){
+      const photo=document.createElement("img");
+      photo.className="search-person-photo";
+      photo.src=IMG+person.profile_path;
+      photo.alt="";
+      photo.loading="lazy";
+      card.appendChild(photo);
+    }else{
+      const placeholder=document.createElement("span");
+      placeholder.className="search-person-photo search-person-placeholder";
+      placeholder.textContent="🎭";
+      placeholder.setAttribute("aria-hidden","true");
+      card.appendChild(placeholder);
+    }
+    const info=document.createElement("span");
+    info.className="search-person-info";
+    const name=document.createElement("span");
+    name.className="search-person-name";
+    name.textContent=person.name;
+    const job=document.createElement("span");
+    job.className="search-person-job";
+    job.textContent=director
+      ?(currentLang==="en"?"Director":"Regista")
+      :(currentLang==="en"?"Actor / Actress":"Attore / Attrice");
+    const open=document.createElement("span");
+    open.className="search-person-link";
+    open.textContent=currentLang==="en"?"View profile →":"Apri scheda →";
+    info.append(name,job,open);
+    card.appendChild(info);
+    card.addEventListener("click",()=>openPersonWorks(person.id,person.name,director));
+    grid.appendChild(card);
+  });
+  section.appendChild(grid);
+  return section;
+}
+
 async function runSearch(){
   const query = document.getElementById("f-query").value.trim();
   const type = document.getElementById("f-type").value;
@@ -2662,6 +2723,12 @@ async function runSearch(){
 
   try{
     let combined = [];
+    // Search TMDB people once, in parallel with movie/title requests.
+    // The same response is also used by the actor search filter.
+    const personQuery=actor||query;
+    const peopleRequest=personQuery
+      ?tmdb("/search/person",{query:personQuery}).catch(()=>({results:[]}))
+      :Promise.resolve({results:[]});
 
     if(query){
       /* ---- ricerca testuale per titolo ---- */
@@ -2686,7 +2753,7 @@ async function runSearch(){
         combined = combined.filter(x => (x.vote_average||0) >= Number(rating));
       }
       if(actor){
-        const people = await tmdb("/search/person", { query: actor });
+        const people = await peopleRequest;
         const castId = people.results && people.results.length ? people.results[0].id : null;
         if(castId){
           const checks = await Promise.all(combined.map(async x=>{
@@ -2707,7 +2774,7 @@ async function runSearch(){
       /* ---- ricerca a filtri (discover) ---- */
       let castId = null;
       if(actor){
-        const people = await tmdb("/search/person", { query: actor });
+        const people = await peopleRequest;
         if(people.results && people.results.length) castId = people.results[0].id;
       }
       const params = (mediaType)=>{
@@ -2730,13 +2797,35 @@ async function runSearch(){
       ];
     }
 
+    const peopleData=await peopleRequest;
+    const term=personQuery.trim().toLocaleLowerCase();
+    const people=(peopleData.results||[])
+      .filter(person=>Number.isSafeInteger(person.id)&&person.id>0&&person.name)
+      .sort((a,b)=>{
+        const exactA=String(a.name).toLocaleLowerCase()===term?1:0;
+        const exactB=String(b.name).toLocaleLowerCase()===term?1:0;
+        return exactB-exactA||(b.popularity||0)-(a.popularity||0);
+      }).slice(0,5);
+
     resultsEl.innerHTML = "";
-    if(!combined.length){
+    lastSearchItems = combined;
+    if(!combined.length&&!people.length){
       resultsEl.innerHTML = `<div class="empty"><b>Nessun risultato.</b><br>Prova ad allargare i filtri o a controllare il titolo digitato.</div>`;
       return;
     }
-    lastSearchItems = combined;
-    populateResultsContainer(resultsEl, combined, getViewMode("search"));
+    if(people.length) resultsEl.appendChild(renderSearchPeople(people));
+    if(combined.length){
+      if(people.length){
+        const mediaHeading=document.createElement("h3");
+        mediaHeading.className="person-section-title";
+        mediaHeading.textContent=currentLang==="en"?"Movies and TV series":"Film e serie TV";
+        resultsEl.appendChild(mediaHeading);
+      }
+      const mediaResults=document.createElement("div");
+      mediaResults.id="searchMediaResults";
+      resultsEl.appendChild(mediaResults);
+      populateResultsContainer(mediaResults, combined, getViewMode("search"));
+    }
   }catch(e){
     resultsEl.innerHTML = `<div class="empty">Errore durante la ricerca. Riprova.</div>`;
   }
@@ -2754,6 +2843,7 @@ document.getElementById("clearFilters").addEventListener("click", ()=>{
   document.getElementById("f-rating-val").textContent="0";
   document.getElementById("f-type").value="both";
   document.getElementById("searchResults").innerHTML="";
+  lastSearchItems=[];
 });
 
 /* ================= FAVORITES (libreria) ================= */
@@ -5723,7 +5813,9 @@ document.getElementById("popularViewToggle").appendChild(
 );
 document.getElementById("searchViewToggle").appendChild(
   buildViewToggle("search", (mode)=>{
-    if(lastSearchItems.length) populateResultsContainer(document.getElementById("searchResults"), lastSearchItems, mode);
+    const mediaResults=document.getElementById("searchMediaResults");
+    if(lastSearchItems.length && mediaResults)
+      populateResultsContainer(mediaResults, lastSearchItems, mode);
   })
 );
 document.getElementById("recViewToggle").appendChild(
