@@ -648,6 +648,9 @@ button{font-family:inherit;cursor:pointer;}
 .person-watch-summary{color:var(--gold);font-size:13px;font-weight:700;margin-top:5px;}
 .person-missing-btn{background:var(--gold);color:#1b150c;border:1px solid var(--gold);border-radius:999px;padding:10px 14px;font:inherit;font-weight:750;font-size:12px;cursor:pointer;min-height:40px;}
 .person-missing-btn:focus-visible{outline:2px solid var(--text);outline-offset:3px;}
+.person-watch-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.person-copy-btn{background:var(--surface-2);color:var(--gold);border:1px solid var(--line);border-radius:999px;padding:10px 14px;font:inherit;font-weight:700;font-size:12px;cursor:pointer;min-height:40px;}
+.person-copy-btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px;}
 
 @media(max-width:640px){
   .person-profile{grid-template-columns:110px minmax(0,1fr);gap:14px;padding:14px;}
@@ -4950,9 +4953,14 @@ function renderPersonWorks(){
       <div class="person-watch-summary">${seenCount} ${currentLang==="en"?"watched":"visti"} · ${missingCount} ${currentLang==="en"?"not marked":"non segnati"}</div>
       <div style="color:var(--muted);font-size:11px;margin-top:4px;">${currentLang==="en"?"Not marked does not necessarily mean never watched.":"Non segnato non significa necessariamente mai guardato."}</div>
     </div>
-    <button type="button" id="pw-missing-movies" class="person-missing-btn">
-      ${currentLang==="en"?"🎬 Movies to check":"🎬 Film da verificare"}
-    </button>
+    <div class="person-watch-actions">
+      <button type="button" id="pw-missing-movies" class="person-missing-btn">
+        ${currentLang==="en"?"🎬 Movies to check":"🎬 Film da verificare"}
+      </button>
+      <button type="button" id="pw-copy-missing" class="person-copy-btn">
+        ${currentLang==="en"?"Copy missing list":"Copia elenco"}
+      </button>
+    </div>
   `;
   resultsEl.appendChild(head);
 
@@ -4972,6 +4980,25 @@ function renderPersonWorks(){
     document.getElementById("pw-type").value="movie";
     personWatchFilter="missing";
     renderPersonWorks();
+  });
+  document.getElementById("pw-copy-missing").addEventListener("click",async ()=>{
+    const titles=personWorksCache.filter(item=>item.media_type==="movie"&&
+      !isWatched("movie",item.id)&&!isPersonExtraCredit(item)).slice().sort((a,b)=>
+        (personCreditDate(a)||"9999").localeCompare(personCreditDate(b)||"9999"));
+    const rows=titles.map(item=>{
+      const year=personCreditDate(item).slice(0,4)||"s.d.";
+      return "- "+(item.title||item.name||"Titolo sconosciuto")+" ("+year+") · TMDB "+item.id;
+    });
+    const copyText=(personProfileData?.name||personWorksLabel)+
+      " — film NON segnati come visti su CineMood ("+rows.length+")\n"+
+      "Non segnato non significa mai guardato.\n\n"+rows.join("\n");
+    try{
+      await navigator.clipboard.writeText(copyText);
+      toast(currentLang==="en"?"List copied — paste it in ChatGPT":"Elenco copiato: incollalo in ChatGPT");
+    }catch(e){
+      // On older Safari versions, allow manual selection without losing data.
+      window.prompt(currentLang==="en"?"Copy this list":"Copia questo elenco",copyText);
+    }
   });
   document.getElementById("pw-hide-extras").addEventListener("change", renderPersonWorks);
 
