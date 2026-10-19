@@ -4978,6 +4978,7 @@ function renderPersonWorks(){
   });
   document.getElementById("pw-missing-movies").addEventListener("click",()=>{
     document.getElementById("pw-type").value="movie";
+    document.getElementById("pw-hide-extras").checked=true;
     personWatchFilter="missing";
     renderPersonWorks();
   });
