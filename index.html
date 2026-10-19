@@ -645,6 +645,10 @@ button{font-family:inherit;cursor:pointer;}
   display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap;
   margin:18px 0 10px;
 }
+.person-watch-summary{color:var(--gold);font-size:13px;font-weight:700;margin-top:5px;}
+.person-missing-btn{background:var(--gold);color:#1b150c;border:1px solid var(--gold);border-radius:999px;padding:10px 14px;font:inherit;font-weight:750;font-size:12px;cursor:pointer;min-height:40px;}
+.person-missing-btn:focus-visible{outline:2px solid var(--text);outline-offset:3px;}
+
 @media(max-width:640px){
   .person-profile{grid-template-columns:110px minmax(0,1fr);gap:14px;padding:14px;}
   .person-profile-photo{width:110px;}
@@ -4656,6 +4660,7 @@ let personProfileData = null;
 let personTopWorks = [];
 let personExternalIds = {};
 let personWikipediaMeta = null;
+let personWatchFilter = "all";
 
 function escHtml(value){
   return String(value ?? "")
@@ -4803,9 +4808,15 @@ function renderPersonWorks(){
   const typeFilter = document.getElementById("pw-type")?.value || "all";
   const hideExtras = document.getElementById("pw-hide-extras")?.checked ?? false;
 
-  let list = personWorksCache.slice();
-  if(typeFilter!=="all") list = list.filter(x=>x.media_type===typeFilter);
-  if(hideExtras) list = list.filter(x=>!isPersonExtraCredit(x));
+  let allWorks = personWorksCache.slice();
+  if(typeFilter!=="all") allWorks = allWorks.filter(x=>x.media_type===typeFilter);
+  if(hideExtras) allWorks = allWorks.filter(x=>!isPersonExtraCredit(x));
+  const seenCount = allWorks.filter(x=>isWatched(x.media_type,x.id)).length;
+  const missingCount = allWorks.length-seenCount;
+  let list = allWorks;
+  if(personWatchFilter==="seen") list = list.filter(x=>isWatched(x.media_type,x.id));
+  if(personWatchFilter==="missing") list = list.filter(x=>!isWatched(x.media_type,x.id));
+  if(personWatchFilter==="wishlist") list = list.filter(x=>isFav(x.media_type,x.id));
 
   // Cronologia crescente: dal primo lavoro al più recente. Senza data in fondo.
   list.sort((a,b)=>{
@@ -4898,6 +4909,15 @@ function renderPersonWorks(){
           <option value="tv">${currentLang==="en"?"TV series only":"Solo serie TV"}</option>
         </select>
       </div>
+      <div class="field">
+        <label>${currentLang==="en"?"Your watch history":"Il tuo archivio"}</label>
+        <select id="pw-watch">
+          <option value="all">${currentLang==="en"?"All titles":"Tutti i titoli"}</option>
+          <option value="missing">${currentLang==="en"?"Not marked as watched":"Non segnati come visti"}</option>
+          <option value="seen">${currentLang==="en"?"Watched":"Visti"}</option>
+          <option value="wishlist">${currentLang==="en"?"Wishlist":"Wishlist"}</option>
+        </select>
+      </div>
       <div class="field" style="display:flex;flex-direction:column;justify-content:flex-end;">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;text-transform:none;letter-spacing:0;color:var(--text);font-weight:600;">
           <input type="checkbox" id="pw-hide-extras" style="width:16px;height:16px;">
@@ -4927,7 +4947,12 @@ function renderPersonWorks(){
     <div>
       <h3 class="person-section-title" style="margin:0 0 4px;">${filmographyLabel}</h3>
       <div style="color:var(--muted);font-size:12px;">${escHtml(personWorksLabel)} · ${list.length} ${currentLang==="en"?"titles":"titoli"}</div>
+      <div class="person-watch-summary">${seenCount} ${currentLang==="en"?"watched":"visti"} · ${missingCount} ${currentLang==="en"?"not marked":"non segnati"}</div>
+      <div style="color:var(--muted);font-size:11px;margin-top:4px;">${currentLang==="en"?"Not marked does not necessarily mean never watched.":"Non segnato non significa necessariamente mai guardato."}</div>
     </div>
+    <button type="button" id="pw-missing-movies" class="person-missing-btn">
+      ${currentLang==="en"?"🎬 Movies to check":"🎬 Film da verificare"}
+    </button>
   `;
   resultsEl.appendChild(head);
 
@@ -4936,8 +4961,18 @@ function renderPersonWorks(){
   resultsEl.appendChild(filtersWrap.firstElementChild);
 
   document.getElementById("pw-type").value = typeFilter;
+  document.getElementById("pw-watch").value = personWatchFilter;
   document.getElementById("pw-hide-extras").checked = hideExtras;
   document.getElementById("pw-type").addEventListener("change", renderPersonWorks);
+  document.getElementById("pw-watch").addEventListener("change", e=>{
+    personWatchFilter=e.target.value;
+    renderPersonWorks();
+  });
+  document.getElementById("pw-missing-movies").addEventListener("click",()=>{
+    document.getElementById("pw-type").value="movie";
+    personWatchFilter="missing";
+    renderPersonWorks();
+  });
   document.getElementById("pw-hide-extras").addEventListener("change", renderPersonWorks);
 
   if(!list.length){
@@ -4952,12 +4987,17 @@ function renderPersonWorks(){
   grid.className = "results-grid";
   list.forEach(item=>{
     const role = item.character || item.job || "";
-    grid.appendChild(buildCard(item, item.media_type, role ? {badge:escHtml(role)} : {}));
+    const card = buildCard(item, item.media_type, role ? {badge:escHtml(role)} : {});
+    // Update the filtered result count immediately after the user changes a flag.
+    card.querySelector(".watched-toggle")?.addEventListener("click",renderPersonWorks);
+    card.querySelector(".fav-toggle")?.addEventListener("click",renderPersonWorks);
+    grid.appendChild(card);
   });
   resultsEl.appendChild(grid);
 }
 
 async function openPersonWorks(personId, personName, asCrew){
+  personWatchFilter = "all";
   switchToSearchTab();
   const resultsEl = document.getElementById("searchResults");
   resultsEl.innerHTML = `<div class="loader"><div class="spin"></div>${currentLang==="en"?"Loading profile…":"Caricamento scheda…"}</div>`;
