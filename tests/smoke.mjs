@@ -118,6 +118,24 @@ assert(Array.isArray(manifest.icons) && manifest.icons.length >= 2, "Manifest: i
 assert(sw.includes("notificationclick"), "Service worker: gestione tap notifica mancante");
 assert(sw.includes("onBackgroundMessage"), "Service worker: gestione FCM background mancante");
 
+// Deep-link compatibility: known Search Console 404 paths must resolve as HTML
+// and forward to the current ?open=movie-ID route, not to the obsolete slug.
+const legacyMovieLinks = [
+  ["278950", "guardians-of-the-galaxy-3"],
+  ["693134", "2049"],
+  ["327100", "guardians-of-the-galaxy-3"],
+  ["284054", "guardians-of-the-galaxy-3"]
+];
+for (const [movieId, legacySlug] of legacyMovieLinks) {
+  const route = `it/movie/${movieId}/${legacySlug}.html`;
+  const html = read(route);
+  const target = `https://cine-mood.net/?open=movie-${movieId}`;
+  assert(html.includes('http-equiv="refresh"'), `Redirect HTML mancante: ${route}`);
+  assert(html.includes(target), `Destinazione ID film errata: ${route}`);
+  assert(html.includes('name="robots" content="noindex,follow"'), `Anti-duplicazione SEO mancante: ${route}`);
+  inlineScripts(html).forEach((source, i) => checkJavaScriptSyntax(source, `${route} script #${i + 1}`));
+}
+
 console.log("✓ CineMood smoke check superato");
 console.log("  Home, continua a guardare, News, statistiche, piattaforme, ricerca, dettaglio, Mood, uscite, calendario e universi: struttura presente");
 console.log("  JavaScript, i18n, privacy, manifest, FCM e regressioni note: OK");
