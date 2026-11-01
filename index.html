@@ -3588,10 +3588,12 @@ function findLimitedCinemaEvent(title){
   return LIMITED_CINEMA_EVENTS.find(e => e.title.trim().toLowerCase() === t);
 }
 
-// Fonti ottobre 2026: ComingSoon.it e Movieplayer.it per il calendario italiano,
-// con verifica sulle fonti ufficiali Netflix, Apple TV, Prime Video e Crunchyroll.
-const CURATED_STREAMING_MONTH = "Ottobre 2026";
-const CURATED_STREAMING_MONTH_EN = "October 2026";
+// Uscite serie TV novembre 2026: fonti italiane ComingSoon.it, TVSerial.it,
+// Sky e calendari di piattaforma Netflix, Disney+, Apple TV e Paramount+.
+// Data: debutto della serie/stagione in Italia, non le puntate successive.
+// I film streaming saranno curati in un aggiornamento dedicato.
+const CURATED_STREAMING_MONTH = "Novembre 2026";
+const CURATED_STREAMING_MONTH_EN = "November 2026";
 
 function updateUpcomingSubtitle(){
   const el = document.getElementById("upcomingSubtitle");
@@ -3606,117 +3608,48 @@ function updateUpcomingSubtitle(){
 }
 const CURATED_STREAMING = [
   // NETFLIX
-  { title:"East of Eden", type:"tv", date:"1 ott", platform:"Netflix" },
-  { title:"The Ramparts of Ice", type:"tv", date:"1 ott", platform:"Netflix" },
-  { title:"#Love", type:"tv", date:"2 ott", platform:"Netflix" },
-  { title:"Tougen Anki", type:"tv", date:"2 ott", platform:"Netflix" },
-  { title:"Tyler Perry's Doing Life", type:"movie", date:"2 ott", platform:"Netflix" },
-  { title:"Schumacher '94 - The Birth of a Legend", type:"movie", date:"2 ott", platform:"Netflix" },
-  { title:"Ranma 1/2", type:"tv", date:"3 ott", platform:"Netflix" },
-  { title:"Blue Box", type:"tv", date:"4 ott", platform:"Netflix" },
-  { title:"Dentro il cerchio", type:"tv", date:"7 ott", platform:"Netflix" },
-  { title:"Maschi veri", type:"tv", date:"7 ott", platform:"Netflix" },
-  { title:"Who Is Martin Mull?", type:"movie", date:"7 ott", platform:"Netflix" },
-  { title:"Below", type:"tv", date:"8 ott", platform:"Netflix" },
-  { title:"Take Charge of My Heart", type:"tv", date:"9 ott", platform:"Netflix" },
-  { title:"Haunted Hotel", type:"tv", date:"9 ott", platform:"Netflix" },
-  { title:"Animals", type:"movie", date:"9 ott", platform:"Netflix" },
-  { title:"The Trap", type:"tv", date:"13 ott", platform:"Netflix" },
-  { title:"Hollywood Arts", type:"tv", date:"15 ott", platform:"Netflix" },
-  { title:"The Diplomat", type:"tv", date:"15 ott", platform:"Netflix" },
-  { title:"Ghosts", type:"tv", date:"16 ott", platform:"Netflix" },
-  { title:"Money Trap", type:"tv", date:"16 ott", platform:"Netflix" },
-  { title:"Norm: The Tale of Norm Macdonald", type:"movie", date:"16 ott", platform:"Netflix" },
-  { title:"Sacrifice", type:"movie", date:"16 ott", platform:"Netflix" },
-  { title:"Seriously Single Too", type:"movie", date:"16 ott", platform:"Netflix" },
-  { title:"Therapy Done Right", type:"movie", date:"16 ott", platform:"Netflix" },
-  { title:"Cyberpunk: Edgerunners", type:"tv", date:"20 ott", platform:"Netflix" },
-  { title:"The Mothers of Penguins", type:"tv", date:"21 ott", platform:"Netflix" },
-  { title:"Did Someone Happen to Mention Me?", type:"tv", date:"22 ott", platform:"Netflix" },
-  { title:"Nobody Wants This", type:"tv", date:"22 ott", platform:"Netflix" },
-  { title:"Fading Grandeur", type:"tv", date:"23 ott", platform:"Netflix" },
-  { title:"Lupin", type:"tv", date:"23 ott", platform:"Netflix" },
-  { title:"Paralyzed by Hope: The Maria Bamford Story", type:"movie", date:"23 ott", platform:"Netflix" },
-  { title:"Minimum Wage", type:"tv", date:"26 ott", platform:"Netflix" },
-  { title:"The One About Matthew Perry", type:"tv", date:"27 ott", platform:"Netflix" },
-  { title:"Balaraw: Blood Island", type:"tv", date:"29 ott", platform:"Netflix" },
-  { title:"You, Me, Us", type:"movie", date:"29 ott", platform:"Netflix" },
-  { title:"A Couple of Lies", type:"tv", date:"30 ott", platform:"Netflix" },
-  { title:"Collision Course", type:"movie", date:"30 ott", platform:"Netflix" },
-  { title:"SCTV: The Greatest Show You've Never Heard Of", type:"movie", date:"30 ott", platform:"Netflix" },
+  { title:"Bass X Machina", type:"tv", date:"3 nov", platform:"Netflix" },
+  { title:"Anestesia", type:"tv", date:"4 nov", platform:"Netflix" },
+  { title:"Black Doves", type:"tv", date:"5 nov", platform:"Netflix" },
+  { title:"North of North", type:"tv", date:"5 nov", platform:"Netflix" },
+  { title:"ChiaroScuro", type:"tv", date:"11 nov", platform:"Netflix" },
+  { title:"The Body", type:"tv", date:"11 nov", platform:"Netflix" },
+  { title:"The Empress", type:"tv", date:"12 nov", platform:"Netflix" },
+  { title:"Murder in Galicia", type:"tv", date:"13 nov", platform:"Netflix" },
+  { title:"The Altruists", type:"tv", date:"19 nov", platform:"Netflix" },
+  { title:"Fargo", type:"tv", date:"22 nov", platform:"Netflix" },
+  { title:"The Hunting Wives", type:"tv", date:"26 nov", platform:"Netflix" },
+  { title:"Fool Night", type:"tv", date:"26 nov", platform:"Netflix" },
 
   // PRIME VIDEO
-  { title:"Ingorgo", type:"tv", date:"2 ott", platform:"Prime Video" },
-  { title:"Red Queen", type:"tv", date:"2 ott", platform:"Prime Video" },
-  { title:"Carrie", type:"tv", date:"7 ott", platform:"Prime Video" },
-  { title:"Helluva Boss", type:"tv", date:"14 ott", platform:"Prime Video" },
-  { title:"Friends Sex and Games", type:"tv", date:"16 ott", platform:"Prime Video" },
-  { title:"Masterplan", type:"movie", date:"16 ott", platform:"Prime Video" },
-  { title:"The Terminal List", type:"tv", date:"21 ott", platform:"Prime Video" },
+  { title:"The Greatest", type:"tv", date:"4 nov", platform:"Prime Video" },
+  { title:"Campus Drivers", type:"tv", date:"6 nov", platform:"Prime Video" },
+  { title:"The Lord of the Rings: The Rings of Power", type:"tv", date:"11 nov", platform:"Prime Video" },
+  { title:"Blade Runner 2099", type:"tv", date:"25 nov", platform:"Prime Video" },
 
   // DISNEY+
-  { title:"American Horror Story", type:"tv", date:"1 ott", platform:"Disney+" },
-  { title:"Coven Academy", type:"tv", date:"2 ott", platform:"Disney+" },
-  { title:"Family Guy", type:"tv", date:"5 ott", platform:"Disney+" },
-  { title:"Merry Berry Love", type:"tv", date:"7 ott", platform:"Disney+" },
-  { title:"The Drop: A Snowfall Saga", type:"tv", date:"7 ott", platform:"Disney+" },
-  { title:"Vampirina: Teenage Vampire", type:"tv", date:"7 ott", platform:"Disney+" },
-  { title:"VisionQuest", type:"tv", date:"14 ott", platform:"Disney+" },
-  { title:"It's Always Sunny in Philadelphia", type:"tv", date:"21 ott", platform:"Disney+" },
+  { title:"All's Fair", type:"tv", date:"4 nov", platform:"Disney+" },
+  { title:"The Remarried Empress", type:"tv", date:"4 nov", platform:"Disney+" },
+  { title:"Rivals", type:"tv", date:"11 nov", platform:"Disney+" },
+  { title:"Scrubs", type:"tv", date:"18 nov", platform:"Disney+" },
+  { title:"Percy Jackson and the Olympians", type:"tv", date:"20 nov", platform:"Disney+" },
 
   // HBO MAX
-  { title:"Peccato", type:"tv", date:"2 ott", platform:"HBO Max" },
-  { title:"Get Jiro", type:"tv", date:"4 ott", platform:"HBO Max" },
-  { title:"Furia", type:"tv", date:"9 ott", platform:"HBO Max" },
-  { title:"Crystal Lake", type:"tv", date:"15 ott", platform:"HBO Max" },
-  { title:"Yaga", type:"tv", date:"23 ott", platform:"HBO Max" },
+  { title:"Melania Rea", type:"tv", date:"6 nov", platform:"HBO Max" },
+  { title:"The Good Daughter", type:"tv", date:"12 nov", platform:"HBO Max" },
 
   // APPLE TV+
-  { title:"The Sisters Grimm", type:"tv", date:"2 ott", platform:"Apple TV+" },
-  { title:"The Last First: Winter K2", type:"movie", date:"2 ott", platform:"Apple TV+" },
-  { title:"Small Prophets", type:"tv", date:"7 ott", platform:"Apple TV+" },
-  { title:"Matchbox: The Movie", type:"movie", date:"9 ott", platform:"Apple TV+" },
-  { title:"Where's Wanda?", type:"tv", date:"21 ott", platform:"Apple TV+" },
-  { title:"Nocturne", type:"tv", date:"30 ott", platform:"Apple TV+" },
+  { title:"Stick", type:"tv", date:"4 nov", platform:"Apple TV+" },
+  { title:"12 12 12", type:"tv", date:"13 nov", platform:"Apple TV+" },
 
   // NOW
-  { title:"Nord Sud Ovest Est - La leggendaria storia degli 883", type:"tv", date:"9 ott", platform:"NOW" },
-  { title:"Law & Order: Organized Crime", type:"tv", date:"11 ott", platform:"NOW" },
-  { title:"Vigil", type:"tv", date:"18 ott", platform:"NOW" },
-  { title:"Signora Volpe", type:"tv", date:"28 ott", platform:"NOW" },
-  { title:"The Institute", type:"tv", date:"31 ott", platform:"NOW" },
+  { title:"The Gilded Age", type:"tv", date:"2 nov", platform:"NOW" },
+  { title:"Babylon Berlin", type:"tv", date:"10 nov", platform:"NOW" },
+  { title:"Piedone - Uno sbirro a Napoli", type:"tv", date:"23 nov", platform:"NOW" },
+  { title:"War", type:"tv", date:"27 nov", platform:"NOW" },
 
   // PARAMOUNT+
-  { title:"Marshals: A Yellowstone Story", type:"tv", date:"5 ott", platform:"Paramount+" },
-  { title:"Avatar: Seven Havens", type:"tv", date:"9 ott", platform:"Paramount+" },
-  { title:"Tulsa King", type:"tv", date:"16 ott", platform:"Paramount+" },
-  { title:"All the Queen's Men", type:"tv", date:"21 ott", platform:"Paramount+" },
-  { title:"Dexter: Resurrection", type:"tv", date:"30 ott", platform:"Paramount+" },
-
-  // CRUNCHYROLL
-  { title:"The Apothecary Diaries", type:"tv", date:"2 ott", platform:"Crunchyroll" },
-  { title:"#I'm Looking For a Zombie", type:"tv", date:"3 ott", platform:"Crunchyroll" },
-  { title:"A Tale of the Secret Saint", type:"tv", date:"3 ott", platform:"Crunchyroll" },
-  { title:"Black Clover", type:"tv", date:"3 ott", platform:"Crunchyroll" },
-  { title:"Magical Explorer", type:"tv", date:"3 ott", platform:"Crunchyroll" },
-  { title:"Romelia War Chronicle", type:"tv", date:"3 ott", platform:"Crunchyroll" },
-  { title:"VERTEX FORCE", type:"tv", date:"3 ott", platform:"Crunchyroll" },
-  { title:"Aoashi", type:"tv", date:"4 ott", platform:"Crunchyroll" },
-  { title:"Even Though I'm a Super Timid Noble Girl, I Accepted the Bet From My Cunning Fiancé", type:"tv", date:"4 ott", platform:"Crunchyroll" },
-  { title:"Reborn as a Space Mercenary: I Woke Up Piloting the Strongest Starship!", type:"tv", date:"4 ott", platform:"Crunchyroll" },
-  { title:"Uncle's Obsession with Cute Things", type:"tv", date:"4 ott", platform:"Crunchyroll" },
-  { title:"PSYREN", type:"tv", date:"5 ott", platform:"Crunchyroll" },
-  { title:"A Returner's Magic Should Be Special", type:"tv", date:"7 ott", platform:"Crunchyroll" },
-  { title:"Magic Knight Rayearth", type:"tv", date:"7 ott", platform:"Crunchyroll" },
-  { title:"Sasaki and Peeps", type:"tv", date:"7 ott", platform:"Crunchyroll" },
-  { title:"The World's Strongest Witch", type:"tv", date:"7 ott", platform:"Crunchyroll" },
-  { title:"Firefly Wedding", type:"tv", date:"9 ott", platform:"Crunchyroll" },
-  { title:"Paw & Palaces", type:"tv", date:"10 ott", platform:"Crunchyroll" },
-  { title:"The Vermilion Mask", type:"tv", date:"10 ott", platform:"Crunchyroll" },
-  { title:"Ace of Diamond act II", type:"tv", date:"11 ott", platform:"Crunchyroll" },
-  { title:"Chitose Is in the Ramune Bottle", type:"tv", date:"13 ott", platform:"Crunchyroll" },
-  { title:"DARK MACHINE THE ANIMATION", type:"tv", date:"13 ott", platform:"Crunchyroll" },
-  { title:"Dreamland", type:"tv", date:"16 ott", platform:"Crunchyroll" },
+  { title:"Yellowjackets", type:"tv", date:"20 nov", platform:"Paramount+" },
 ];
 
 async function buildUpcoming(){
