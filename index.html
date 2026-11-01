@@ -3881,8 +3881,10 @@ async function buildUpcoming(){
       const limited = findLimitedCinemaEvent(x);
       const manualFallback = VERIFIED_ITALIAN_CINEMA_FALLBACKS.find(e=>e.id===x.id);
       const specialDate = limited?.date>=startDate&&limited?.date<=endDate?limited.date:null;
-      const overrideDate = confirmedDate(x);
-      const date = overrideDate||specialDate||manualFallback?.date||cinemaItalyDates.get(x.id)||null;
+      const override = confirmedDate(x);
+      const overrideDate = override>=startDate&&override<=endDate?override:null;
+      const manualDate = manualFallback?.date>=startDate&&manualFallback?.date<=endDate?manualFallback.date:null;
+      const date = overrideDate||specialDate||manualDate||cinemaItalyDates.get(x.id)||null;
       const tag = limited&&specialDate ? `🎪 Evento: ${limited.dates}` :
         date ? formatShortDate(date) :
         (currentLang==="en"?"November · day unconfirmed":"Novembre · giorno da confermare");
