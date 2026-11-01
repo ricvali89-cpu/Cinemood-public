@@ -3808,11 +3808,20 @@ async function buildUpcoming(){
 
     // lista curata a mano: cerca ogni titolo su TMDB solo per recuperare locandina e id,
     // data e piattaforma restano quelle scritte a mano (più affidabili di quanto sappia TMDB)
-    const streamResults = await Promise.all(CURATED_STREAMING.map(entry=>
-      tmdb(entry.type==="tv" ? "/search/tv" : "/search/movie", { query: entry.title })
-        .then(r => { const found = (r.results||[])[0]; return found ? { ...found, media_type: entry.type, _entry: entry } : null; })
-        .catch(()=>null)
-    ));
+    // Con molti titoli evitiamo picchi di richieste simultanee al limite TMDB.
+    // Gli elementi e l'ordinamento restano identici alla precedente Promise.all.
+    const streamResults = [];
+    for(let offset=0;offset<CURATED_STREAMING.length;offset+=16){
+      const batch = CURATED_STREAMING.slice(offset,offset+16);
+      const matched = await Promise.all(batch.map(entry=>
+        tmdb(entry.type==="tv" ? "/search/tv" : "/search/movie", { query: entry.title })
+          .then(r => { const found = (r.results||[])[0]; return found ? { ...found, media_type: entry.type, _entry: entry } : null; })
+          .catch(()=>null)
+      ));
+      streamResults.push(...matched);
+      if(offset+16<CURATED_STREAMING.length)
+        await new Promise(resolve=>setTimeout(resolve,300));
+    }
 // Converte una data scritta a mano tipo "14 set" in un numero ordinabile (mese*100+giorno).
 // Se il formato non è riconosciuto (es. "tutto il mese"), la mette in fondo senza bloccare l'ordinamento.
 function parseHandwrittenDate(str){
