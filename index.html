@@ -3581,11 +3581,31 @@ let upcomingActiveTab = "cinema";
 // Eventi cinema a tempo limitato (es. anteprime evento di 2-3 giorni): TMDB sa solo
 // la data di inizio, non quando finisce — questa lista scritta a mano aggiunge il
 // periodo esatto, aggiornata insieme alla lista streaming ogni mese.
+// Eventi verificati per le sale italiane: date evento, non release globale.
+// Gli ID TMDB impediscono abbinamenti omonimi (es. il film di Ken del 1986).
 const LIMITED_CINEMA_EVENTS = [
+  { id:62, title:"2001: A Space Odyssey", date:"2026-11-16", dates:"16–18 nov" },
+  { id:372058, title:"Your Name.", date:"2026-11-23", dates:"23–25 nov" },
+  { id:19877, title:"Fist of the North Star", date:"2026-11-30", dates:"30 nov – 2 dic" },
+  { title:"In un battito", date:"2026-11-16", dates:"16–18 nov" },
+  { title:"L'impero dei sensi", date:"2026-11-09", dates:"9–11 nov" },
+  { title:"Holy Wood Dust", date:"2026-11-23", dates:"23–25 nov" }
 ];
-function findLimitedCinemaEvent(title){
-  const t = (title||"").trim().toLowerCase();
-  return LIMITED_CINEMA_EVENTS.find(e => e.title.trim().toLowerCase() === t);
+// Film distribuiti in Italia ma assenti dall'attuale discover TMDB/IT.
+// Ogni eccezione usa un ID TMDB verificato, non il primo omonimo in ricerca.
+const VERIFIED_ITALIAN_CINEMA_FALLBACKS = [
+  { id:1649403, date:"2026-11-06" }, // George Michael: The Faith Tour
+  { id:1705496, date:"2026-11-05" }, // La mia storia con te
+  { id:19877, date:"2026-11-30" }   // Ken il guerriero (film 1986)
+];
+const VERIFIED_ITALIAN_CINEMA_DATES = [
+  { title:"La Gradiva", date:"2026-11-12" } // distribuzione italiana
+];
+function findLimitedCinemaEvent(movie){
+  const title = String(movie?.title||movie?.original_title||"").trim().toLowerCase();
+  return LIMITED_CINEMA_EVENTS.find(e => e.id ? e.id===movie.id :
+    e.title.toLowerCase()===title||
+    e.title.toLowerCase()===String(movie?.original_title||"").trim().toLowerCase());
 }
 
 // Uscite serie TV novembre 2026: fonti italiane ComingSoon.it, TVSerial.it,
@@ -3819,13 +3839,55 @@ async function buildUpcoming(){
       .flatMap(page=>page.results||[])
       .filter(x=>{ if(cinemaSeen.has(x.id)) return false; cinemaSeen.add(x.id); return true; });
 
-    upcomingCinemaItems = cinemaResults.filter(x=>x.poster_path)
-      .map(x=>{
-        const limited = findLimitedCinemaEvent(x.title);
-        const tag = limited ? `🎪 Esclusiva: ${limited.dates}` : formatShortDate(x.release_date);
-        return {...x, media_type:"movie", _date:x.release_date, _tag:tag};
-      })
-      .sort((a,b)=> (a._date||"").localeCompare(b._date||""));
+    // Discover filtra le uscite italiane, ma x.release_date è spesso la
+    // PRIMA uscita mondiale (anche di molti anni prima). Recuperiamo perciò
+    // le singole date cinematografiche in Italia, senza modificare i filtri.
+    // Batch contenuti: la lista può avere decine di film.
+    const cinemaItalyDates = new Map();
+    const italianMovies = cinemaResults.filter(x=>x.poster_path);
+    for(let offset=0;offset<italianMovies.length;offset+=12){
+      const batch = italianMovies.slice(offset,offset+12);
+      const resolved = await Promise.all(batch.map(x=>
+        tmdb("/movie/"+x.id+"/release_dates")
+          .then(data=>{
+            const it = (data.results||[]).find(r=>r.iso_3166_1==="IT");
+            return (it?.release_dates||[])
+              .filter(r=>[2,3].includes(r.type))
+              .map(r=>String(r.release_date||"").slice(0,10))
+              .filter(date=>date>=startDate&&date<=endDate)
+              .sort()[0]||null;
+          }).catch(()=>null)
+      ));
+      batch.forEach((movie,i)=>{if(resolved[i])cinemaItalyDates.set(movie.id,resolved[i]);});
+      if(offset+12<italianMovies.length)
+        await new Promise(resolve=>setTimeout(resolve,300));
+    }
+    // Riedizioni e pochi titoli con data italiana ufficiale ma non registrata
+    // dal discover: recuperiamo SOLO la scheda TMDB con ID preciso.
+    const fallbackCandidates = VERIFIED_ITALIAN_CINEMA_FALLBACKS.filter(e=>
+      e.date>=startDate&&e.date<=endDate&&!cinemaSeen.has(e.id));
+    const extraCinema = (await Promise.all(fallbackCandidates.map(async e=>{
+      try{
+        const movie = await tmdb("/movie/"+e.id);
+        return movie?.id===e.id&&movie.poster_path ? movie : null;
+      }catch{return null;}
+    }))).filter(Boolean);
+    for(const movie of extraCinema){
+      if(!cinemaSeen.has(movie.id)){cinemaSeen.add(movie.id);italianMovies.push(movie);}
+    }
+    const confirmedDate = x=>VERIFIED_ITALIAN_CINEMA_DATES.find(e=>
+      e.title.toLowerCase()===String(x.title||"").trim().toLowerCase())?.date;
+    upcomingCinemaItems = italianMovies.map(x=>{
+      const limited = findLimitedCinemaEvent(x);
+      const manualFallback = VERIFIED_ITALIAN_CINEMA_FALLBACKS.find(e=>e.id===x.id);
+      const specialDate = limited?.date>=startDate&&limited?.date<=endDate?limited.date:null;
+      const overrideDate = confirmedDate(x);
+      const date = overrideDate||specialDate||manualFallback?.date||cinemaItalyDates.get(x.id)||null;
+      const tag = limited&&specialDate ? `🎪 Evento: ${limited.dates}` :
+        date ? formatShortDate(date) :
+        (currentLang==="en"?"November · day unconfirmed":"Novembre · giorno da confermare");
+      return {...x,media_type:"movie",_date:date||endDate+"~",_tag:tag};
+    }).sort((a,b)=>(a._date||"").localeCompare(b._date||""));
 
     // lista curata a mano: cerca ogni titolo su TMDB solo per recuperare locandina e id,
     // data e piattaforma restano quelle scritte a mano (più affidabili di quanto sappia TMDB)
