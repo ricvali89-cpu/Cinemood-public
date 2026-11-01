@@ -1420,6 +1420,9 @@ const PLATFORMS = [
   { id: 283, name: "Crunchyroll",  color:"#f47521" },
   { id: 337, name: "Disney+",      color:"#113ccf" },
   { id: 39,  name: "NOW",          color:"#00e5ff" },
+  { id: 222, name: "RaiPlay",      color:"#1687c8" },
+  // In Italia MGM+ è un canale extra, distinto da Prime Video incluso.
+  { id: 583, name: "MGM+",         color:"#a378bc" },
 ];
 
 // Loghi ufficiali delle piattaforme, presi da TMDB una sola volta all'avvio (non per ogni scheda).
@@ -3608,10 +3611,9 @@ function findLimitedCinemaEvent(movie){
     e.title.toLowerCase()===String(movie?.original_title||"").trim().toLowerCase());
 }
 
-// Uscite serie TV novembre 2026: fonti italiane ComingSoon.it, TVSerial.it,
-// Sky e calendari di piattaforma Netflix, Disney+, Apple TV e Paramount+.
-// Data: debutto della serie/stagione in Italia, non le puntate successive.
-// I film streaming saranno curati in un aggiornamento dedicato.
+// Novità streaming novembre 2026, film e serie: calendario curato per l'Italia.
+// RaiPlay e MGM+ usano le date di prima visione italiana, separate da Prime Video.
+// Aggiornare solo le date confermate da piattaforme e fonti italiane.
 const CURATED_STREAMING_MONTH = "Novembre 2026";
 const CURATED_STREAMING_MONTH_EN = "November 2026";
 
@@ -3808,6 +3810,15 @@ const CURATED_STREAMING = [
   { title:"Una fottuta bugia", type:"movie", date:"1 nov", platform:"Paramount+" },
   { title:"My Weird School", type:"movie", date:"13 nov", platform:"Paramount+" },
   { title:"Plankton's Christmas", type:"movie", date:"27 nov", platform:"Paramount+" },
+  // RAIPLAY — prime visioni italiane Rai 1 disponibili anche on demand.
+  { title:"Livatino - Il giudice e i suoi assassini", type:"tv", date:"9 nov", platform:"RaiPlay" },
+  { title:"177 giorni. Il rapimento di Farouk", type:"tv", date:"16 nov", platform:"RaiPlay" },
+  { title:"La famiglia Panini - L'avventura delle figurine", type:"tv", date:"22 nov", platform:"RaiPlay" },
+  { title:"Una finestra vista lago", type:"tv", date:"24 nov", platform:"RaiPlay" },
+
+  // MGM+ — canale aggiuntivo disponibile in Italia, anche via Prime Video Channels.
+  { title:"The Institute", type:"tv", date:"8 nov", platform:"MGM+" },
+  { title:"Secret Service", type:"tv", date:"22 nov", platform:"MGM+" },
 ];
 
 async function buildUpcoming(){
