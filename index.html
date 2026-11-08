@@ -714,7 +714,7 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
   width:36px;height:36px;border-radius:50%;font-weight:800;font-size:14px;
   display:flex;align-items:center;justify-content:center;flex:0 0 auto;
 }
-.profile-menu-wrap{position:relative;display:flex;align-items:center;gap:6px;}
+.profile-menu-wrap{position:relative;}
 .profile-menu{
   position:fixed;z-index:60;
   background:var(--surface);border:1px solid var(--line);border-radius:12px;
@@ -877,7 +877,6 @@ footer{text-align:center;color:var(--muted);font-size:11.5px;padding:40px 0 20px
   <button class="mood-btn alt-universe" id="openUniverses" type="button">🌐 <span class="txt-label" data-i18n="btn.universes">Universi</span></button>
   <button class="mood-btn" id="openMood">🎭 <span class="txt-label" data-i18n="btn.mood">Mood</span></button>
   <div class="profile-menu-wrap">
-    <div id="profileSyncStatus" role="status" aria-live="polite" title="Stato salvataggio Firebase" style="font-size:10px;line-height:1.2;color:var(--muted);max-width:105px;text-align:right;overflow-wrap:break-word">○ Verifica Firebase…</div>
     <button class="profile-switch-btn" id="switchProfileBtn" title="Il tuo profilo"></button>
     <div class="profile-menu" id="profileMenu" hidden>
       <div class="profile-menu-name" id="profileMenuName"></div>
@@ -1752,13 +1751,6 @@ function retryCloudStateCheck(){
   }, 5000);
 }
 
-function setProfileSyncStatus(message, ok){
-  const el=document.getElementById("profileSyncStatus");
-  if(!el)return;
-  el.textContent=(ok ? "● " : "○ ")+message;
-  el.style.color=ok ? "var(--gold, #d5ad5c)" : "var(--muted)";
-}
-
 async function persistAll(){
   const data = { displayName:CURRENT_DISPLAY_NAME, favorites:FAVORITES, watched:WATCHED, watchedSeasons:WATCHED_SEASONS, watchedEpisodes:WATCHED_EPISODES, ratings:RATINGS, platforms:MY_PLATFORMS, notificationPrefs:NOTIFICATION_PREFS };
   store.set(pKey("data"), data);
@@ -1767,13 +1759,11 @@ async function persistAll(){
     // scrivere ora rischierebbe di sovrascrivere dati reali con uno stato incompleto/vuoto.
     console.warn("Salvataggio cloud bloccato: stato non ancora confermato da Firestore per questo profilo.");
     cloudOk = false;
-    setProfileSyncStatus("Firebase: in attesa di connessione", false);
     toast(t("toast.syncFail"));
     retryCloudStateCheck();
     return;
   }
   if(PUBLIC_PERSONAL_SYNC?.ready && PUBLIC_PERSONAL_SYNC.uid === CURRENT_PROFILE){
-    setProfileSyncStatus("Firebase: salvataggio in corso…", false);
     PUBLIC_PERSONAL_SYNC.persist(data);
     return;
   }
@@ -1781,9 +1771,7 @@ async function persistAll(){
   try{
     await db.collection("profiles").doc(CURRENT_PROFILE).set(data, { mergeFields:PROFILE_DATA_FIELDS });
     cloudOk = true;
-    setProfileSyncStatus("Firebase: sincronizzato", true);
   }catch(e){
-    setProfileSyncStatus("Firebase: salvataggio non riuscito", false);
     console.error("Salvataggio cloud fallito, resta salvato solo sul telefono.", e);
     cloudOk = false;
     toast(t("toast.syncFail"));
@@ -1813,11 +1801,7 @@ function startPublicRealtimeSync(initialData){
       if(typeof buildContinueWatching==="function")buildContinueWatching();
     },
     status(message){
-      if(message==="Sincronizzato")setProfileSyncStatus("Firebase: sincronizzato", true);
-      else if(message.startsWith("Sync in attesa")){
-        setProfileSyncStatus("Firebase: modifiche in attesa", false);
-        console.warn(message);
-      }else setProfileSyncStatus("Firebase: verifica necessaria", false);
+      if(message.startsWith("Sync in attesa"))console.warn(message);
     }
   });
   PUBLIC_PERSONAL_SYNC.begin(initialData);
