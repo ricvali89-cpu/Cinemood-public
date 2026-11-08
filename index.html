@@ -1938,10 +1938,11 @@ function toggleWatched(mediaType, id){
     // I preferiti sono la wishlist: passando a visto, il titolo esce dalla lista da vedere.
     FAVORITES[mediaType] = FAVORITES[mediaType].filter(item=>String(item.id)!==String(id));
   }
+  if(mediaType==="movie" && WATCHED.movie[id]) setMovieProgress(id, 0);
   persistAll();
   refreshAllCardStates();
   renderFavorites();
-  if(mediaType==="tv") buildContinueWatching();
+  if(mediaType==="tv" || mediaType==="movie") buildContinueWatching();
 }
 
 function refreshAllCardStates(){
@@ -2065,6 +2066,32 @@ function populateResultsContainer(container, items, mode){
   }
 }
 
+/* Progressi film inseriti manualmente, locali al profilo. La sincronizzazione Infuse/Jellyfin richiede un collegamento autenticato separato. */
+function movieProgressStore(){
+  try{ return JSON.parse(localStorage.getItem(pKey("movieProgress")) || "{}") || {}; }
+  catch(e){ return {}; }
+}
+function setMovieProgress(id, minutes){
+  const entries = movieProgressStore();
+  if(minutes > 0 && Number.isFinite(minutes)) entries[id] = { minutes, updatedAt:Date.now() };
+  else delete entries[id];
+  try{ localStorage.setItem(pKey("movieProgress"), JSON.stringify(entries)); }
+  catch(e){ console.warn("Progressi film non salvati",e); }
+  buildContinueWatching();
+}
+function editMovieProgress(id, runtime){
+  const previous = movieProgressStore()[id]?.minutes || 0;
+  const answer = prompt("Minuto raggiunto nel film (0 per rimuoverlo da Continua a guardare):", String(previous));
+  if(answer===null) return;
+  const minutes = Number(answer.replace(",","."));
+  if(!Number.isFinite(minutes) || minutes<0 || (runtime>0 && minutes>=runtime)){
+    toast("Inserisci un minuto valido, inferiore alla durata del film.");
+    return;
+  }
+  setMovieProgress(id, minutes);
+  openDetail(id, "movie", false);
+}
+
 /* ================= HOME ================= */
 let usedHomeShelfIds = new Set();
 
@@ -2079,7 +2106,11 @@ async function buildContinueWatching(){
   const tvIds = [...new Set(progressKeys.map(key=>Number(key.split("-")[0])).filter(Boolean))]
     .filter(id=>!isWatched("tv", id));
 
-  if(!tvIds.length){
+  const movieEntries = Object.entries(movieProgressStore())
+    .filter(([id, progress])=>progress && progress.minutes>0 && !isWatched("movie", id))
+    .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+
+  if(!tvIds.length && !movieEntries.length){
     section.hidden = true;
     shelf.innerHTML = "";
     return;
@@ -2129,13 +2160,18 @@ async function buildContinueWatching(){
       }
     }))).filter(Boolean);
 
-    if(!rows.length){
+    const movies = (await Promise.all(movieEntries.map(async ([id, progress])=>{
+      try{ return { ...(await tmdb("/movie/"+encodeURIComponent(id))), _progressMinutes:progress.minutes }; }
+      catch(e){ console.warn("Film in corso non disponibile",id,e); return null; }
+    }))).filter(Boolean);
+    if(!rows.length && !movies.length){
       section.hidden = true;
       shelf.innerHTML = "";
       return;
     }
 
     shelf.innerHTML = "";
+    movies.forEach(item=>shelf.appendChild(buildCard(item, "movie", {badge:"▶ "+item._progressMinutes+" min · In corso"})));
     rows.forEach(item=>{
       const ep = item._nextEpisode;
       const badge = `▶ S${item._nextSeason} E${ep.episode_number}${ep.name ? " · "+ep.name : ""}`;
@@ -3048,6 +3084,7 @@ async function openDetail(id, mediaType, pushHistory=true){
           <div class="modal-actions">
             <button class="btn ${fav?'primary':''}" id="detailFav">${fav?t("detail.inFav"):t("detail.addFav")}</button>
             <button class="btn ${watched?'primary':''}" id="detailWatched">${watched?t("detail.watched"):t("detail.markWatched")}</button>
+            ${mediaType==="movie" ? `<button class="btn" id="detailMovieProgress" type="button">⏱ ${movieProgressStore()[id]?.minutes ? "Riprendi da "+movieProgressStore()[id].minutes+" min" : "Film in corso"}</button>` : ""}
             <button class="btn" id="detailShare" type="button">${t("detail.share")}</button>
 
             ${trailer ? `<a class="btn" href="https://www.youtube.com/watch?v=${trailer.key}" target="_blank" rel="noopener">${t("detail.trailer")}</a>` : ""}
@@ -3152,6 +3189,7 @@ async function openDetail(id, mediaType, pushHistory=true){
       toggleWatched(mediaType, id);
       openDetail(id, mediaType, false);
     });
+    if(mediaType==="movie") document.getElementById("detailMovieProgress").addEventListener("click", ()=>editMovieProgress(id, Number(details.runtime)||0));
     document.getElementById("detailShare").addEventListener("click", async ()=>{
       const shareUrl = `${location.origin}${location.pathname}?open=${mediaType}-${id}`;
       const shareText = currentLang==="en" ? `Check out "${title}" on CineMood` : `Guarda "${title}" su CineMood`;
