@@ -2119,9 +2119,9 @@ async function buildContinueWatching(){
   const shelf = document.getElementById("continueShelf");
   if(!section || !shelf) return;
 
-  const jellyfinEpisodes = JELLYFIN_RESUME.filter(item=>item.type==="episode" &&
-    !isWatched("tv",Number(item.tmdbId)) &&
-    !(WATCHED_EPISODES[item.tmdbId+"-"+item.season]||[]).includes(Number(item.episode)));
+  // Una riproduzione parziale Jellyfin prevale sulla spunta "visto" locale,
+  // senza modificare lo storico degli episodi completati.
+  const jellyfinEpisodes = JELLYFIN_RESUME.filter(item=>item.type==="episode");
   const episodeBySeries = new Map();
   jellyfinEpisodes.forEach(item=>episodeBySeries.set(Number(item.tmdbId),item));
   const progressKeys = Object.keys(WATCHED_EPISODES)
@@ -2130,7 +2130,7 @@ async function buildContinueWatching(){
   const tvIds = [...new Set([
     ...episodeBySeries.keys(),
     ...progressKeys.map(key=>Number(key.split("-")[0])).filter(Boolean)
-  ])].filter(id=>!isWatched("tv",id));
+  ])].filter(id=>episodeBySeries.has(id) || !isWatched("tv",id));
 
   const localMovies = movieProgressStore();
   const jellyfinMovies = JELLYFIN_RESUME.filter(item=>item.type==="movie" &&
