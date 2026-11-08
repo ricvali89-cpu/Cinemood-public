@@ -2102,13 +2102,24 @@ function watchJellyfinResume(uid){
   jellyfinResumeUnsubscribe=ref.onSnapshot(snapshot=>{
     if(CURRENT_PROFILE!==uid)return;
     const data=snapshot.exists ? snapshot.data() : null;
+    if(new URLSearchParams(location.search).has("jellyfinCheck")){
+      alert("Jellyfin Firestore: "+(snapshot.exists ? "documento presente" : "documento assente")+
+        "\\nSchema: "+(data?.schemaVersion ?? "—")+
+        "\\nElementi: "+(Array.isArray(data?.items) ? data.items.length : "—")+
+        "\\nID: "+(Array.isArray(data?.items) ? data.items.map(x=>String(x.tmdbId)).join(", ") : "—"));
+    }
     JELLYFIN_RESUME=data && data.schemaVersion===1 && Array.isArray(data.items)
       ? data.items.filter(item=>item && (item.type==="movie"||item.type==="episode") &&
           /^\d+$/.test(String(item.tmdbId)) && Number(item.positionSeconds)>0 &&
           Number(item.durationSeconds)>Number(item.positionSeconds))
       : [];
     buildContinueWatching();
-  },err=>console.warn("Progressi Jellyfin non disponibili",err));
+  },err=>{
+    console.warn("Progressi Jellyfin non disponibili",err);
+    if(new URLSearchParams(location.search).has("jellyfinCheck")){
+      alert("Errore lettura Jellyfin Firestore: "+(err.code || "sconosciuto"));
+    }
+  });
 }
 
 /* ================= HOME ================= */
