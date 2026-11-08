@@ -126,6 +126,7 @@
       this.ready=true;
       this.unsubscribe=this.ref.onSnapshot(snap=>{
         if(!snap.exists || snap.metadata.hasPendingWrites || this.busy || this.queue.length)return;
+        this.options.status?.('Sincronizzato');
         const remote=normalize(snap.data());
         if(JSON.stringify(remote)===JSON.stringify(this.last))return;
         this.last=clone(remote);
@@ -184,6 +185,8 @@
         this.queue.push(...ops);
         this.savePending();
         this.flush();
+      }else if(!this.busy && !this.queue.length){
+        this.options.status?.('Sincronizzato');
       }
       return true;
     }
