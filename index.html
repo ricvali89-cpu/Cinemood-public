@@ -2104,7 +2104,7 @@ function watchJellyfinResume(uid){
     const data=snapshot.exists ? snapshot.data() : null;
     JELLYFIN_RESUME=data && data.schemaVersion===1 && Array.isArray(data.items)
       ? data.items.filter(item=>item && (item.type==="movie"||item.type==="episode") &&
-          /^\\d+$/.test(String(item.tmdbId)) && Number(item.positionSeconds)>0 &&
+          /^\d+$/.test(String(item.tmdbId)) && Number(item.positionSeconds)>0 &&
           Number(item.durationSeconds)>Number(item.positionSeconds))
       : [];
     buildContinueWatching();
