@@ -2066,7 +2066,7 @@ function populateResultsContainer(container, items, mode){
   }
 }
 
-/* Progressi film inseriti manualmente, locali al profilo. La sincronizzazione Infuse/Jellyfin richiede un collegamento autenticato separato. */
+/* Progressi film inseriti manualmente, locali al profilo. */
 function movieProgressStore(){
   try{ return JSON.parse(localStorage.getItem(pKey("movieProgress")) || "{}") || {}; }
   catch(e){ return {}; }
@@ -2092,36 +2092,6 @@ function editMovieProgress(id, runtime){
   openDetail(id, "movie", false);
 }
 
-/* Snapshot Jellyfin separato dal profilo: sola lettura, mai altera i visti. */
-let JELLYFIN_RESUME = [];
-let jellyfinResumeUnsubscribe = null;
-function watchJellyfinResume(uid){
-  if(jellyfinResumeUnsubscribe){ jellyfinResumeUnsubscribe(); jellyfinResumeUnsubscribe=null; }
-  JELLYFIN_RESUME = [];
-  const ref=db.collection("profiles").doc(uid).collection("integrations").doc("jellyfinResume");
-  jellyfinResumeUnsubscribe=ref.onSnapshot(snapshot=>{
-    if(CURRENT_PROFILE!==uid)return;
-    const data=snapshot.exists ? snapshot.data() : null;
-    if(new URLSearchParams(location.search).has("jellyfinCheck")){
-      alert("Jellyfin Firestore: "+(snapshot.exists ? "documento presente" : "documento assente")+
-        "\\nSchema: "+(data?.schemaVersion ?? "—")+
-        "\\nElementi: "+(Array.isArray(data?.items) ? data.items.length : "—")+
-        "\\nID: "+(Array.isArray(data?.items) ? data.items.map(x=>String(x.tmdbId)).join(", ") : "—"));
-    }
-    JELLYFIN_RESUME=data && data.schemaVersion===1 && Array.isArray(data.items)
-      ? data.items.filter(item=>item && (item.type==="movie"||item.type==="episode") &&
-          /^\d+$/.test(String(item.tmdbId)) && Number(item.positionSeconds)>0 &&
-          Number(item.durationSeconds)>Number(item.positionSeconds))
-      : [];
-    buildContinueWatching();
-  },err=>{
-    console.warn("Progressi Jellyfin non disponibili",err);
-    if(new URLSearchParams(location.search).has("jellyfinCheck")){
-      alert("Errore lettura Jellyfin Firestore: "+(err.code || "sconosciuto"));
-    }
-  });
-}
-
 /* ================= HOME ================= */
 let usedHomeShelfIds = new Set();
 
@@ -2130,26 +2100,14 @@ async function buildContinueWatching(){
   const shelf = document.getElementById("continueShelf");
   if(!section || !shelf) return;
 
-  // Una riproduzione parziale Jellyfin prevale sulla spunta "visto" locale,
-  // senza modificare lo storico degli episodi completati.
-  const jellyfinEpisodes = JELLYFIN_RESUME.filter(item=>item.type==="episode");
-  const episodeBySeries = new Map();
-  jellyfinEpisodes.forEach(item=>episodeBySeries.set(Number(item.tmdbId),item));
   const progressKeys = Object.keys(WATCHED_EPISODES)
     .filter(key=>Array.isArray(WATCHED_EPISODES[key]) && WATCHED_EPISODES[key].length)
     .reverse();
-  const tvIds = [...new Set([
-    ...episodeBySeries.keys(),
-    ...progressKeys.map(key=>Number(key.split("-")[0])).filter(Boolean)
-  ])].filter(id=>episodeBySeries.has(id) || !isWatched("tv",id));
+  const tvIds = [...new Set(progressKeys.map(key=>Number(key.split("-")[0])).filter(Boolean))]
+    .filter(id=>!isWatched("tv",id));
 
   const localMovies = movieProgressStore();
-  const jellyfinMovies = JELLYFIN_RESUME.filter(item=>item.type==="movie" &&
-    !isWatched("movie",Number(item.tmdbId)));
   const movieProgress = new Map(Object.entries(localMovies));
-  jellyfinMovies.forEach(item=>movieProgress.set(String(item.tmdbId),{
-    minutes:Math.floor(Number(item.positionSeconds)/60), updatedAt:Date.now(), jellyfin:true
-  }));
   const movieEntries = [...movieProgress.entries()]
     .filter(([id,progress])=>progress && progress.minutes>0 && !isWatched("movie",id))
     .sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
@@ -2167,13 +2125,6 @@ async function buildContinueWatching(){
     const rows = (await Promise.all(tvIds.map(async tvId=>{
       try{
         const show = await tmdb(`/tv/${tvId}`);
-        const resume = episodeBySeries.get(tvId);
-        if(resume){
-          return {...show,media_type:"tv",
-            _nextEpisode:{episode_number:Number(resume.episode)},
-            _nextSeason:Number(resume.season),
-            _resumeMinutes:Math.floor(Number(resume.positionSeconds)/60)};
-        }
         const progressedSeasons = Object.keys(WATCHED_EPISODES)
           .filter(key=>key.startsWith(tvId+"-") && (WATCHED_EPISODES[key]||[]).length)
           .map(key=>Number(key.split("-")[1]))
@@ -5631,7 +5582,6 @@ function askForName(){
 
 async function bootProfile(uid){
   CURRENT_PROFILE = uid;
-  watchJellyfinResume(uid);
   await loadState();
   await videoDonePromise;
 
