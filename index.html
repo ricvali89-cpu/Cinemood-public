@@ -2077,8 +2077,7 @@ async function buildContinueWatching(){
     .filter(key=>Array.isArray(WATCHED_EPISODES[key]) && WATCHED_EPISODES[key].length)
     .reverse();
   const tvIds = [...new Set(progressKeys.map(key=>Number(key.split("-")[0])).filter(Boolean))]
-    .filter(id=>!isWatched("tv", id))
-    .slice(0,8);
+    .filter(id=>!isWatched("tv", id));
 
   if(!tvIds.length){
     section.hidden = true;
