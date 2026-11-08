@@ -126,9 +126,6 @@
       this.ready=true;
       this.unsubscribe=this.ref.onSnapshot(snap=>{
         if(!snap.exists || snap.metadata.hasPendingWrites || this.busy || this.queue.length)return;
-        // Una risposta dalla cache offline non prova che Firebase abbia confermato i dati.
-        if(!snap.metadata.fromCache)this.options.status?.('Sincronizzato');
-        else this.options.status?.('Sync in attesa: verifica server');
         const remote=normalize(snap.data());
         if(JSON.stringify(remote)===JSON.stringify(this.last))return;
         this.last=clone(remote);
@@ -187,8 +184,6 @@
         this.queue.push(...ops);
         this.savePending();
         this.flush();
-      }else if(!this.busy && !this.queue.length){
-        this.options.status?.('Sincronizzato');
       }
       return true;
     }
