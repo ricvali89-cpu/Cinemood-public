@@ -3120,11 +3120,11 @@ async function openDetail(id, mediaType, pushHistory=true){
         <div class="seasons">
           <h4>${t("detail.seasons")}</h4>
           <label for="cm-season-picker" style="display:block;margin-bottom:8px;color:var(--muted)">Seleziona una stagione</label>
-          <select id="cm-season-picker" style="width:100%;min-height:48px;padding:12px;border-radius:10px;background:var(--surface);color:var(--text);border:1px solid var(--line)">
+          <select id="cm-season-picker" style="width:100%;min-height:52px;padding:12px 16px;border-radius:12px;background:#302514;color:#ffe2a0;border:2px solid #e3a857;font-weight:700;font-size:16px;box-shadow:0 0 0 1px rgba(227,168,87,.15)">
             <option value="">Scegli la stagione…</option>
             ${list.map(s=>`<option value="${s.season_number}">${s.name} · ${s.episode_count} episodi</option>`).join("")}
           </select>
-          <div id="cm-season-sheet" hidden style="margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface)">
+          <div id="cm-season-sheet" hidden style="position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.94);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:max(22px,env(safe-area-inset-top)) 18px max(32px,env(safe-area-inset-bottom));color:var(--text)">
             <button type="button" class="btn" id="cm-season-back" style="margin-bottom:12px">← Torna alle stagioni</button>
             <div id="cm-season-header"></div>
             ${list.map(s=>`<div class="season-block" data-season-panel="${s.season_number}" hidden>
@@ -3294,16 +3294,23 @@ async function openDetail(id, mediaType, pushHistory=true){
     const picker=detailModal.querySelector("#cm-season-picker");
     const sheet=detailModal.querySelector("#cm-season-sheet");
     const header=detailModal.querySelector("#cm-season-header");
+    const sheetParent=sheet.parentElement;
+    sheet.setAttribute("role","dialog");
+    sheet.setAttribute("aria-modal","true");
+    sheet.setAttribute("aria-label","Scheda stagione");
     detailModal.querySelector("#cm-season-back")?.addEventListener("click",()=>{
-      picker.value="";sheet.hidden=true;picker.focus();
+      picker.value="";sheet.hidden=true;sheetParent.append(sheet);picker.focus();
     });
     picker?.addEventListener("change",()=>{
       const num=Number(picker.value);
+      if(picker.value){document.body.append(sheet);sheet.scrollTop=0;}
+      else sheetParent.append(sheet);
       sheet.hidden=!picker.value;
       sheet.querySelectorAll("[data-season-panel]").forEach(panel=>{
         panel.hidden=Number(panel.dataset.seasonPanel)!==num;
       });
       if(!picker.value)return;
+      sheet.querySelector("#cm-season-back")?.focus({preventScroll:true});
       const season=(details.seasons||[]).find(s=>Number(s.season_number)===num);
       header.replaceChildren();
       const titleEl=document.createElement("h3");
