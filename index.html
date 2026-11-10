@@ -3371,6 +3371,46 @@ async function loadEpisodes(tvId, seasonNum, container){
       </div>`;
     }).join("") || `<div class="empty" style="padding:10px 0;">Nessun episodio trovato.</div>`;
 
+    // Scheda episodio: si apre toccando la puntata, senza alterare il pulsante "visto".
+    container.querySelectorAll(".episode-row").forEach((row,index)=>{
+      const ep=(data.episodes||[])[index];
+      if(!ep)return;
+      row.style.cursor="pointer";
+      row.setAttribute("role","button");
+      row.setAttribute("tabindex","0");
+      const showEpisode=()=>{
+        let sheet=container.querySelector(".cm-episode-sheet");
+        if(!sheet){
+          sheet=document.createElement("div");
+          sheet.className="cm-episode-sheet";
+          sheet.style.cssText="padding:16px;margin:12px 0;border:1px solid var(--line);border-radius:12px;background:var(--bg-soft)";
+          container.prepend(sheet);
+        }
+        sheet.replaceChildren();
+        const back=document.createElement("button");
+        back.type="button";back.className="btn";back.textContent="← Torna agli episodi";
+        back.addEventListener("click",()=>sheet.remove());
+        const title=document.createElement("h3");
+        title.textContent="S"+String(seasonNum).padStart(2,"0")+" · E"+String(ep.episode_number).padStart(2,"0")+" — "+(ep.name||"Episodio");
+        sheet.append(back,title);
+        if(ep.still_path){
+          const img=document.createElement("img");
+          img.src=IMG+ep.still_path;img.alt=ep.name||"";
+          img.style.cssText="width:100%;max-width:360px;border-radius:10px;margin:12px 0";
+          sheet.append(img);
+        }
+        const info=document.createElement("p");
+        info.textContent=[ep.air_date,ep.runtime?ep.runtime+" min":""].filter(Boolean).join(" · ");
+        sheet.append(info);
+        const overview=document.createElement("p");
+        overview.textContent=ep.overview||"Nessuna trama disponibile.";
+        sheet.append(overview);
+        sheet.scrollIntoView({block:"nearest",behavior:"smooth"});
+      };
+      row.addEventListener("click",e=>{if(e.target.closest("[data-ep-toggle]"))return;showEpisode()});
+      row.addEventListener("keydown",e=>{if(e.target!==row)return;if(e.key==="Enter"||e.key===" "){e.preventDefault();showEpisode()}});
+    });
+
     // Tocca la trama per espanderla/comprimerla, invece di restare tagliata a 2 righe
     container.querySelectorAll(".ep-overview").forEach(p=>{
       p.addEventListener("click", ()=> p.classList.toggle("expanded"));
