@@ -6146,6 +6146,33 @@ Promise.race([
     }
   });
   document.body.appendChild(button);
+  if(fbAuth.currentUser?.uid==="4voNf1FTm3S8HPt9VOXBpakMImm2" || true){
+    const exportButton=document.createElement("button");
+    exportButton.type="button";
+    exportButton.textContent="Esporta miei dati";
+    exportButton.style.cssText="position:fixed;bottom:calc(75px + env(safe-area-inset-bottom));right:16px;z-index:2147483647;background:#d8b56a;color:#111821;border:0;border-radius:12px;padding:13px 16px;font-weight:700;box-shadow:0 4px 18px #0009";
+    exportButton.addEventListener("click",async()=>{
+      const user=fbAuth.currentUser;
+      if(!user || user.uid!=="4voNf1FTm3S8HPt9VOXBpakMImm2"){
+        alert("Esportazione riservata al profilo Giuseppe collegato. Nessun dato esportato.");return;
+      }
+      exportButton.disabled=true;
+      exportButton.textContent="Lettura dati...";
+      try{
+        const snap=await db.collection("profiles").doc(user.uid).get();
+        if(!snap.exists)throw Error("Profilo Firestore non trovato");
+        const source=snap.data()||{};
+        const data={sourceUid:user.uid,exportedAt:new Date().toISOString(),favorites:source.favorites||{movie:[],tv:[]},watched:source.watched||{movie:{},tv:{}},watchedSeasons:source.watchedSeasons||{},watchedEpisodes:source.watchedEpisodes||{},ratings:source.ratings||{movie:{},tv:{}}};
+        const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");a.href=url;a.download="cinemood-giuseppe-export.json";document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),60000);
+        exportButton.textContent="Esportazione avviata ✓";
+      }catch(err){console.error("Esportazione Giuseppe",err);alert("Esportazione non riuscita: "+(err.code||err.message||"errore sconosciuto"));exportButton.textContent="Esporta miei dati";}
+      finally{exportButton.disabled=false;}
+    });
+    document.body.appendChild(exportButton);
+  }
 })();
 /* ---------- Banner "Scarica l'app": solo Android, solo nel browser ---------- */
 (function androidInstallBanner(){
