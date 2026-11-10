@@ -3119,17 +3119,23 @@ async function openDetail(id, mediaType, pushHistory=true){
       seasonsHtml = `
         <div class="seasons">
           <h4>${t("detail.seasons")}</h4>
-          ${list.map(s=>{
-            const flagged = (WATCHED_SEASONS[id]||[]).includes(s.season_number);
-            return `<div class="season-block">
-              <div class="season-row" data-season="${s.season_number}">
-                <button class="season-expand" type="button" data-season-toggle="${s.season_number}">▸</button>
-                <span class="s-name" style="flex:1;">${s.name} · ${s.episode_count} ${t("detail.episodes")}</span>
-                <span class="season-check ${flagged?'checked':''}">${flagged?'✓':''}</span>
+          <label for="cm-season-picker" style="display:block;margin-bottom:8px;color:var(--muted)">Seleziona una stagione</label>
+          <select id="cm-season-picker" style="width:100%;min-height:48px;padding:12px;border-radius:10px;background:var(--surface);color:var(--text);border:1px solid var(--line)">
+            <option value="">Scegli la stagione…</option>
+            ${list.map(s=>`<option value="${s.season_number}">${s.name} · ${s.episode_count} episodi</option>`).join("")}
+          </select>
+          <div id="cm-season-sheet" hidden style="margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface)">
+            <button type="button" class="btn" id="cm-season-back" style="margin-bottom:12px">← Torna alle stagioni</button>
+            <div id="cm-season-header"></div>
+            ${list.map(s=>`<div class="season-block" data-season-panel="${s.season_number}" hidden>
+              <div class="season-row" data-season="${s.season_number}" style="margin-bottom:12px">
+                <span class="s-name" style="flex:1">${s.name}</span>
+                <span class="season-progress">${(WATCHED_EPISODES[id+"-"+s.season_number]||[]).length}/${s.episode_count} visti</span>
+                <button class="season-check ${(WATCHED_SEASONS[id]||[]).includes(s.season_number)?'checked':''}" type="button" data-mark-season="${s.season_number}" aria-label="Segna stagione come vista">${(WATCHED_SEASONS[id]||[]).includes(s.season_number)?'✓':''}</button>
               </div>
               <div class="episodes-list" id="episodes-${s.season_number}" hidden></div>
-            </div>`;
-          }).join("")}
+            </div>`).join("")}
+          </div>
         </div>`;
     }
 
@@ -3271,33 +3277,61 @@ async function openDetail(id, mediaType, pushHistory=true){
         window.open(`https://wa.me/?text=${encodeURIComponent(shareText + " " + shareUrl)}`, "_blank");
       }
     });
-    detailModal.querySelectorAll(".season-row").forEach(row=>{
-      row.addEventListener("click", ()=>{
-        const sNum = Number(row.dataset.season);
-        WATCHED_SEASONS[id] = WATCHED_SEASONS[id] || [];
-        const idx = WATCHED_SEASONS[id].indexOf(sNum);
-        if(idx>=0) WATCHED_SEASONS[id].splice(idx,1);
-        else WATCHED_SEASONS[id].push(sNum);
+    detailModal.querySelectorAll("[data-mark-season]").forEach(btn=>{
+      btn.addEventListener("click",e=>{
+        e.stopPropagation();
+        const num=Number(btn.dataset.markSeason);
+        WATCHED_SEASONS[id]=WATCHED_SEASONS[id]||[];
+        const idx=WATCHED_SEASONS[id].indexOf(num);
+        if(idx>=0)WATCHED_SEASONS[id].splice(idx,1);
+        else WATCHED_SEASONS[id].push(num);
         persistAll();
-        const chk = row.querySelector(".season-check");
-        const nowFlagged = WATCHED_SEASONS[id].includes(sNum);
-        chk.classList.toggle("checked", nowFlagged);
-        chk.textContent = nowFlagged ? "✓" : "";
+        const marked=WATCHED_SEASONS[id].includes(num);
+        btn.classList.toggle("checked",marked);
+        btn.textContent=marked?"✓":"";
       });
     });
-    detailModal.querySelectorAll("[data-season-toggle]").forEach(btn=>{
-      btn.addEventListener("click", (e)=>{
-        e.stopPropagation();
-        const num = btn.dataset.seasonToggle;
-        const container = document.getElementById("episodes-"+num);
-        const willShow = container.hidden;
-        container.hidden = !willShow;
-        btn.textContent = willShow ? "▾" : "▸";
-        if(willShow && !container.dataset.loaded){
-          container.dataset.loaded = "1";
-          loadEpisodes(id, num, container);
-        }
+    const picker=detailModal.querySelector("#cm-season-picker");
+    const sheet=detailModal.querySelector("#cm-season-sheet");
+    const header=detailModal.querySelector("#cm-season-header");
+    detailModal.querySelector("#cm-season-back")?.addEventListener("click",()=>{
+      picker.value="";sheet.hidden=true;picker.focus();
+    });
+    picker?.addEventListener("change",()=>{
+      const num=Number(picker.value);
+      sheet.hidden=!picker.value;
+      sheet.querySelectorAll("[data-season-panel]").forEach(panel=>{
+        panel.hidden=Number(panel.dataset.seasonPanel)!==num;
       });
+      if(!picker.value)return;
+      const season=(details.seasons||[]).find(s=>Number(s.season_number)===num);
+      header.replaceChildren();
+      const titleEl=document.createElement("h3");
+      titleEl.textContent=season?.name||"Stagione "+num;
+      header.append(titleEl);
+      if(season?.poster_path){
+        const img=document.createElement("img");
+        img.src=IMG+season.poster_path;
+        img.alt=titleEl.textContent;
+        img.style.cssText="width:112px;float:left;margin:0 14px 12px 0;border-radius:9px";
+        header.append(img);
+      }
+      const info=document.createElement("p");
+      info.style.cssText="color:var(--muted);margin:8px 0 12px";
+      info.textContent=(season?.episode_count||0)+" episodi"+(season?.air_date?" · "+season.air_date:"");
+      header.append(info);
+      const overview=document.createElement("p");
+      overview.style.cssText="line-height:1.5;margin-bottom:18px";
+      overview.textContent=season?.overview||"";
+      header.append(overview);
+      const episodes=sheet.querySelector("#episodes-"+num);
+      if(episodes?.hidden){
+        episodes.hidden=false;
+        if(!episodes.dataset.loaded){
+          episodes.dataset.loaded="1";
+          loadEpisodes(id,num,episodes);
+        }
+      }
     });
   }catch(e){
     detailModal.innerHTML = `<div style="padding:30px"><button class="modal-close" id="detailClose">✕</button><div class="empty">Impossibile caricare i dettagli.</div></div>`;
