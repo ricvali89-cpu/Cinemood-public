@@ -2739,6 +2739,38 @@ function renderSearchPeople(people){
   return section;
 }
 
+function cmSearchNormalize(value){
+  return String(value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+}
+function cmSearchDistance(a,b){
+  if(Math.abs(a.length-b.length)>3)return 4;
+  const row=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    let prev=row[0];row[0]=i;
+    for(let j=1;j<=b.length;j++){
+      const old=row[j];
+      row[j]=Math.min(row[j]+1,row[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));
+      prev=old;
+    }
+  }
+  return row[b.length];
+}
+function cmSearchScore(title,query){
+  const a=cmSearchNormalize(title),b=cmSearchNormalize(query);
+  if(!a||!b)return 0;
+  if(a===b)return 100;
+  if(a.startsWith(b))return 90;
+  if(a.includes(b))return 80;
+  const words=a.split(" "),terms=b.split(" ");
+  if(terms.every(term=>words.some(word=>word===term)))return 78;
+  const distance=cmSearchDistance(a,b);
+  if(b.length>=5&&distance<=Math.min(3,Math.floor(b.length/3)))return 68-distance;
+  if(terms.length>=2&&terms.every(term=>words.some(word=>word===term||(term.length>=4&&cmSearchDistance(word,term)<=2))))return 60;
+  return 0;
+}
+function cmSearchTitle(item){return item.title||item.name||item.original_title||item.original_name||"";}
+function cmSearchFavorite(item){return (FAVORITES[item.media_type]||[]).some(f=>String(f.id)===String(item.id));}
+
 async function runSearch(){
   const query = document.getElementById("f-query").value.trim();
   const type = document.getElementById("f-type").value;
@@ -2780,6 +2812,33 @@ async function runSearch(){
         ...movies.map(x=>({...x, media_type:"movie"})),
         ...tv.map(x=>({...x, media_type:"tv"})),
       ];
+
+      // Fallback mirato: titoli preferiti, porzioni del titolo ed errori comuni.
+      // Non aggiunge richieste extra se la ricerca TMDB restituisce già risultati pertinenti.
+      const favoriteCandidates=["movie","tv"].filter(k=>type==="both"||type===k).flatMap(k=>
+        (FAVORITES[k]||[]).map(item=>({...item,media_type:k})).filter(item=>cmSearchScore(cmSearchTitle(item),query)>=58)
+      );
+      const bestDirect=combined.some(item=>cmSearchScore(cmSearchTitle(item),query)>=60);
+      if(!bestDirect&&cmSearchNormalize(query).length>=4){
+        const words=cmSearchNormalize(query).split(" ");
+        const variants=new Set();
+        if(words.length>1)variants.add(words.slice(-Math.min(2,words.length)).join(" "));
+        if(words.length>1&&words[0].length>=1)variants.add(words[0]);
+        if(words.length>2)variants.add(words.slice(1).join(" "));
+        for(const fav of favoriteCandidates.slice(0,3))variants.add(cmSearchTitle(fav));
+        for(const variant of [...variants].filter(v=>v&&cmSearchNormalize(v)!==cmSearchNormalize(query)).slice(0,3)){
+          const [moreMovies,moreTv]=await Promise.all([
+            type==="tv"?Promise.resolve([]):tmdb("/search/movie",{query:variant}).then(x=>x.results||[]).catch(()=>[]),
+            type==="movie"?Promise.resolve([]):tmdb("/search/tv",{query:variant}).then(x=>x.results||[]).catch(()=>[])
+          ]);
+          combined.push(...moreMovies.map(x=>({...x,media_type:"movie"})),...moreTv.map(x=>({...x,media_type:"tv"})));
+          if(variant===words[0]&&words.length>1){
+            combined=combined.filter(item=>cmSearchScore(cmSearchTitle(item),query)>=58||cmSearchFavorite(item));
+          }
+        }
+      }
+      combined.push(...favoriteCandidates);
+      combined=[...new Map(combined.map(item=>[item.media_type+":"+item.id,item])).values()];
 
       /* filtri applicati lato client, dato che l'endpoint di ricerca testuale non li supporta nativamente */
       combined = combined.filter(x=> inRange(x.release_date || x.first_air_date));
@@ -2835,6 +2894,16 @@ async function runSearch(){
         ...movies.map(x=>({...x, media_type:"movie"})),
         ...tv.map(x=>({...x, media_type:"tv"})),
       ];
+    }
+
+    if(query){
+      combined.sort((a,b)=>{
+        const scoreA=cmSearchScore(cmSearchTitle(a),query);
+        const scoreB=cmSearchScore(cmSearchTitle(b),query);
+        const favA=cmSearchFavorite(a)&&scoreA>=58?1:0;
+        const favB=cmSearchFavorite(b)&&scoreB>=58?1:0;
+        return favB-favA||scoreB-scoreA;
+      });
     }
 
     const peopleData=await peopleRequest;
