@@ -3295,6 +3295,7 @@ async function openDetail(id, mediaType, pushHistory=true){
     const sheet=detailModal.querySelector("#cm-season-sheet");
     const header=detailModal.querySelector("#cm-season-header");
     const sheetParent=sheet.parentElement;
+    document.body.querySelector("#cm-season-sheet")?.remove();
     sheet.setAttribute("role","dialog");
     sheet.setAttribute("aria-modal","true");
     sheet.setAttribute("aria-label","Scheda stagione");
@@ -3346,6 +3347,7 @@ async function openDetail(id, mediaType, pushHistory=true){
   }
 }
 function closeDetail(){
+  document.body.querySelector("#cm-season-sheet")?.remove();
   detailOverlay.classList.remove("open");
   if(returnOverlayId){
     const id = returnOverlayId;
