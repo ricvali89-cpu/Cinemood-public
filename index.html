@@ -3097,6 +3097,8 @@ async function openDetail(id, mediaType, pushHistory=true){
       }catch(e){ universeParts = []; }
     }
     const title = details.title || details.name;
+    // TMDB movie 1669841 is the theatrical screening, not the TV series.
+    const bleachCalamityScreening = mediaType==="movie" && Number(id)===1669841;
     const date = (details.release_date || details.first_air_date || "").slice(0,4);
     const poster = posterUrl(details.poster_path);
     const genres = (details.genres||[]).map(g=>g.name);
@@ -3156,6 +3158,8 @@ async function openDetail(id, mediaType, pushHistory=true){
             ${externalRatings.metacritic ? `<span class="tagpill">Ⓜ️ ${externalRatings.metacritic}</span>` : ""}
           </div>` : ""}
           <p class="overview">${details.overview || (currentLang==="en"?"No overview available.":"Nessuna trama disponibile.")}</p>
+          ${bleachCalamityScreening ? `<p class="overview" style="margin-top:8px">Questa è la proiezione cinematografica dei primi tre episodi, non la serie TV. Gli episodi di The Calamity sono nella stagione 4 di Bleach: Thousand-Year Blood War.</p>
+          <button class="btn primary" id="detailBleachSeries" type="button">📺 Apri stagione 4 · 10 episodi</button>` : ""}
           ${director?`<p class="cast"><b style="color:var(--muted)">${t("detail.director")}</b> <button class="person-link" data-pid="${director.id}" data-pname="${director.name.replace(/"/g,'&quot;')}" data-role="crew" type="button">${director.name}</button></p>`:""}
           ${cast.length?`<p class="cast"><b style="color:var(--muted)">${t("detail.cast")}</b> ${cast.map(c=>`<button class="person-link" data-pid="${c.id}" data-pname="${c.name.replace(/"/g,'&quot;')}" data-role="cast" type="button">${c.name}</button>`).join(", ")}</p>`:""}
           <div class="modal-actions">
@@ -3212,6 +3216,34 @@ async function openDetail(id, mediaType, pushHistory=true){
     `;
 
     renderUserRatingPills(mediaType, id);
+    if(bleachCalamityScreening){
+      detailModal.querySelector("#detailBleachSeries")?.addEventListener("click",async(event)=>{
+        const button=event.currentTarget;
+        button.disabled=true;
+        try{
+          const hasFourthSeason=show=>!!show?.seasons?.some(s=>Number(s.season_number)===4&&Number(s.episode_count)>=10);
+          let show=await tmdb("/tv/340620").catch(()=>null);
+          if(!hasFourthSeason(show)){
+            const matches=await tmdb("/search/tv",{query:"Bleach: Thousand-Year Blood War"});
+            for(const candidate of (matches.results||[]).filter(x=>/bleach/i.test(x.name||x.original_name||"")).slice(0,8)){
+              const found=await tmdb(`/tv/${candidate.id}`).catch(()=>null);
+              if(hasFourthSeason(found)){show=found;break;}
+            }
+          }
+          if(!hasFourthSeason(show))throw new Error("TMDB TV season 4 unavailable");
+          await openDetail(show.id,"tv");
+          const picker=detailModal.querySelector("#cm-season-picker");
+          if(picker?.querySelector('option[value="4"]')){
+            picker.value="4";
+            picker.dispatchEvent(new Event("change",{bubbles:true}));
+          }
+        }catch(error){
+          console.warn("CineMood: Bleach TV details unavailable",error);
+          if(button.isConnected)button.disabled=false;
+          toast("Impossibile aprire gli episodi. Riprova.");
+        }
+      });
+    }
     renderReviewsList(reviews, mediaType, id);
 
     const reviewTextEl = document.getElementById("reviewText");
