@@ -2200,7 +2200,7 @@ async function buildHome(){
       <div class="section-title">
         ${p.logo ? `<img src="${p.logo}" alt="" class="platform-logo" style="width:22px;height:22px;margin-right:8px;">` : `<span class="platform-icon" style="background:${p.color}"></span>`}
         <h2>${p.name}</h2>
-        <span class="eyebrow">${t("home.topRated")}</span>
+        <span class="eyebrow">${cmHomeShelfHeading(p.name)}</span>
         <div class="rule"></div>
       </div>
       <div class="shelf-row" id="shelf-${p.id}"><div class="loader"><div class="spin"></div>Caricamento…</div></div>
@@ -2525,9 +2525,95 @@ async function buildWeeklyTrending(){
   }
 }
 
+// Le "Novità Italia" provengono dalle date editoriali italiane del mese,
+// non dalle date di debutto mondiale di TMDB. Le schede restano TMDB.
+function cmHomeItalyEntries(platformName,now=new Date()){
+  const months=["gennaio","febbraio","marzo","aprile","maggio","giugno",
+    "luglio","agosto","settembre","ottobre","novembre","dicembre"];
+  const info=String(CURATED_STREAMING_MONTH||"").trim().toLowerCase().match(/^([a-zà]+)\s+(\d{4})$/);
+  if(!info)return [];
+  const month=months.indexOf(info[1])+1,year=Number(info[2]);
+  if(month<1||year!==now.getFullYear()||month!==now.getMonth()+1)return [];
+  const dayToday=now.getDate();
+  const short=["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"][month-1];
+  const chosen=new Set();
+  return CURATED_STREAMING.filter(entry=>{
+    if(entry.platform!==platformName||!["movie","tv"].includes(entry.type))return false;
+    const match=String(entry.date||"").toLowerCase().match(/^(\d{1,2})\s+([a-z]{3})$/);
+    if(!match||match[2]!==short)return false;
+    const day=Number(match[1]);
+    return day>=1&&day<=dayToday&&day<=new Date(year,month,0).getDate();
+  }).map(entry=>({...entry,_homeDate:year+"-"+String(month).padStart(2,"0")+"-"+String(Number(entry.date.match(/^\d+/)[0])).padStart(2,"0")}))
+    .sort((a,b)=>b._homeDate.localeCompare(a._homeDate))
+    .filter(entry=>{
+      const key=entry.type+":"+entry.title.toLocaleLowerCase("it");
+      if(chosen.has(key))return false;
+      chosen.add(key);return true;
+    }).slice(0,16);
+}
+function cmHomeNormalizeTitle(value){
+  return String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
+    .toLocaleLowerCase("it").replace(/[^\p{L}\p{N}]+/gu," ").trim();
+}
+async function cmHomeItalianProviderMatch(entry,providerId){
+  try{
+    const mediaType=entry.type;
+    const data=await tmdb(mediaType==="tv"?"/search/tv":"/search/movie",{query:entry.title});
+    const wanted=cmHomeNormalizeTitle(entry.title);
+    const exact=(data.results||[]).filter(item=>
+      [item.title,item.name,item.original_title,item.original_name]
+        .some(name=>cmHomeNormalizeTitle(name)===wanted)).slice(0,3);
+    if(!exact.length)return null;
+    const confirmed=(await Promise.all(exact.map(async item=>{
+      try{
+        const providers=await tmdb("/"+mediaType+"/"+item.id+"/watch/providers");
+        const it=providers.results?.IT;
+        const options=[...(it?.flatrate||[]),...(providerId===222?it?.free||[]:[])];
+        return options.some(p=>Number(p.provider_id)===providerId)
+          ?{...item,media_type:mediaType,_homeDate:entry._homeDate,_homeEntry:entry}:null;
+      }catch(_error){return null;}
+    }))).filter(Boolean);
+    // Ambiguous titles must not produce an unrelated poster.
+    return confirmed.length===1?confirmed[0]:null;
+  }catch(_error){return null;}
+}
+async function cmHomeItalianReleaseShelf(providerId,platformName){
+  const entries=cmHomeItalyEntries(platformName);
+  if(!entries.length)return [];
+  const matches=await Promise.all(entries.map(entry=>cmHomeItalianProviderMatch(entry,providerId)));
+  const seen=new Set();
+  return matches.filter(item=>{
+    if(!item?.poster_path)return false;
+    const key=item.media_type+":"+item.id;
+    if(seen.has(key))return false;
+    seen.add(key);return true;
+  }).slice(0,12);
+}
+function cmHomeShelfHeading(platformName){
+  const local=cmHomeItalyEntries(platformName).length>0;
+  return currentLang==="en"
+    ?local?"New in Italy":"Recent catalog titles"
+    :local?"Novità in Italia":"Catalogo recente";
+}
+
 async function loadPlatformShelf(providerId){
   const el = document.getElementById("shelf-"+providerId);
   try{
+    const platform=PLATFORMS.find(p=>p.id===providerId);
+    const italian=platform?await cmHomeItalianReleaseShelf(providerId,platform.name):[];
+    if(italian.length){
+      el.replaceChildren();
+      const fragment=document.createDocumentFragment();
+      italian.forEach(item=>fragment.appendChild(buildCard(item,item.media_type,{
+        badge:"🇮🇹 "+item._homeEntry.date+" · "+(item.media_type==="tv"?"Serie":"Film")
+      })));
+      el.appendChild(fragment);
+      return;
+    }
+    // Nessun evento del calendario italiano con disponibilità confermata:
+    // il fallback TMDB è solo "Catalogo recente", NON una nuova aggiunta in Italia.
+    const heading=el.parentElement?.querySelector(".eyebrow");
+    if(heading)heading.textContent=currentLang==="en"?"Recent catalog titles":"Catalogo recente";
     // NOW ha un catalogo più piccolo su TMDB: finestra più ampia e soglia voti più bassa,
     // altrimenti restano fuori novità come le serie Sky Atlantic appena uscite.
     const isSmallCatalog = providerId === 39; // NOW
