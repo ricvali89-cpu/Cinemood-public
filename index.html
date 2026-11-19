@@ -2549,7 +2549,7 @@ function cmHomeItalyEntries(platformName,now=new Date()){
       const key=entry.type+":"+entry.title.toLocaleLowerCase("it");
       if(chosen.has(key))return false;
       chosen.add(key);return true;
-    }).slice(0,16);
+    }).slice(0,12);
 }
 function cmHomeNormalizeTitle(value){
   return String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
