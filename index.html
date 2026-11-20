@@ -2549,7 +2549,7 @@ function cmHomeItalyEntries(platformName,now=new Date()){
       const key=entry.type+":"+entry.title.toLocaleLowerCase("it");
       if(chosen.has(key))return false;
       chosen.add(key);return true;
-    }).slice(0,12);
+    }).slice(0,60);
 }
 function cmHomeNormalizeTitle(value){
   return String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
@@ -2577,17 +2577,25 @@ async function cmHomeItalianProviderMatch(entry,providerId){
     return confirmed.length===1?confirmed[0]:null;
   }catch(_error){return null;}
 }
-async function cmHomeItalianReleaseShelf(providerId,platformName){
+// Inspect multiple batches instead of stopping after only twelve candidates.
+// Show verified Italian arrivals progressively while the rest are checked.
+async function cmHomeItalianReleaseShelf(providerId,platformName,onProgress){
   const entries=cmHomeItalyEntries(platformName);
   if(!entries.length)return [];
-  const matches=await Promise.all(entries.map(entry=>cmHomeItalianProviderMatch(entry,providerId)));
-  const seen=new Set();
-  return matches.filter(item=>{
-    if(!item?.poster_path)return false;
-    const key=item.media_type+":"+item.id;
-    if(seen.has(key))return false;
-    seen.add(key);return true;
-  }).slice(0,12);
+  const shown=[],seen=new Set();
+  for(let offset=0;offset<entries.length&&shown.length<20;offset+=8){
+    const matches=await Promise.all(entries.slice(offset,offset+8)
+      .map(entry=>cmHomeItalianProviderMatch(entry,providerId)));
+    for(const item of matches){
+      if(!item?.poster_path||shown.length>=20)continue;
+      const key=item.media_type+":"+item.id;
+      if(seen.has(key))continue;
+      seen.add(key);
+      shown.push(item);
+    }
+    if(shown.length&&typeof onProgress==="function")onProgress(shown.slice());
+  }
+  return shown;
 }
 function cmHomeShelfHeading(platformName){
   const local=cmHomeItalyEntries(platformName).length>0;
@@ -2600,14 +2608,18 @@ async function loadPlatformShelf(providerId){
   const el = document.getElementById("shelf-"+providerId);
   try{
     const platform=PLATFORMS.find(p=>p.id===providerId);
-    const italian=platform?await cmHomeItalianReleaseShelf(providerId,platform.name):[];
-    if(italian.length){
+    const showItalian=items=>{
+      if(!el?.isConnected)return;
       el.replaceChildren();
       const fragment=document.createDocumentFragment();
-      italian.forEach(item=>fragment.appendChild(buildCard(item,item.media_type,{
+      items.forEach(item=>fragment.appendChild(buildCard(item,item.media_type,{
         badge:"🇮🇹 "+item._homeEntry.date+" · "+(item.media_type==="tv"?"Serie":"Film")
       })));
       el.appendChild(fragment);
+    };
+    const italian=platform?await cmHomeItalianReleaseShelf(providerId,platform.name,showItalian):[];
+    if(italian.length){
+      showItalian(italian);
       return;
     }
     // Nessun evento del calendario italiano con disponibilità confermata:
